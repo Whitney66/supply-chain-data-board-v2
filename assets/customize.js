@@ -227,9 +227,11 @@
   const categoryQualityPanel = () => {
     const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
     const root = overview?.closest('.bg-gradient-to-br');
+    const qualityButton = root && Array.from(root.querySelectorAll('button')).find(button => button.textContent.includes('质量指标'));
+    if (!root || !qualityButton || !qualityButton.className.includes('bg-blue-600')) return;
     const content = root?.querySelector('.mt-6');
-    if (!root || !content) return;
-    if (content.dataset.categoryQualityReady === 'true' && !root.querySelector('[data-quality-category-panel]')) return;
+    if (!content) return;
+    if (content.dataset.categoryQualityReady === 'true') return;
     content.dataset.categoryQualityReady = 'true';
     const categories = {
       '调拨满足率': ['香化调拨满足率'],
