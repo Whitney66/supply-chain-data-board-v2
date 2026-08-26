@@ -5,8 +5,8 @@
   const metrics = { '香化调拨满足率': [95.2,95.2,94.6,96.1,93.8,95.7,94.9], '库存准确率': [98.8,98.5,98.8,98.2,98.6,98.4,98.7], '效期准确率': [96.2,95.8,96.1,95.5,96.3,96,96.4], '邮寄遗失率': [.07,.08,.06,.11,.07,.09,.05], '邮寄破损率': [.18,.2,.16,.24,.18,.21,.14], '快递有责客诉率': [.22,.25,.22,.31,.19,.27,.18], '物流有责客诉率': [.35,.38,.34,.42,.29,.36,.27] };
   const categories = { '调拨满足率':['香化调拨满足率'], '快递交付':['邮寄遗失率','邮寄破损率'], '客诉情况':['快递有责客诉率','物流有责客诉率'], '准确率盘点情况':['库存准确率','效期准确率'] };
   let overlay, lastCategory, selectedCategory = '调拨满足率';
-  const root = () => [...document.querySelectorAll('h2')].find(el => el.textContent.trim() === '指标总览')?.closest('.bg-gradient-to-br');
-  const activeQuality = () => { const r = root(); return r && [...r.querySelectorAll('button')].some(b => b.textContent.includes('质量指标') && (b.className.includes('scale-105') || b.className.includes('shadow-md'))); };
+  const root = () => [...document.querySelectorAll('h2')].find(el => { if (el.textContent.trim() !== '指标总览') return false; let current = el; while (current) { if ([...current.querySelectorAll('button')].some(button => button.textContent.includes('质量指标'))) return true; current = current.parentElement; } return false; })?.closest('.bg-gradient-to-br');
+  const activeQuality = () => { const r = root(); return r && [...r.querySelectorAll('button')].some(b => b.textContent.includes('质量指标') && (b.className.includes('bg-blue-') || b.className.includes('scale-105') || b.className.includes('shadow-md'))); };
   const category = () => selectedCategory;
   const hideDuplicateCategoryTabs = () => {
     const r = root();
@@ -39,6 +39,7 @@
     values.forEach(item => { const group = document.createElementNS(NS, 'g'); group.dataset.store = item.store; const points = item.months.map((v, m) => `${x(m)},${y(v)}`).join(' '); const line = document.createElementNS(NS, 'polyline'); line.setAttribute('points', points); line.setAttribute('fill', 'none'); line.setAttribute('stroke', colors[item.index]); line.setAttribute('stroke-width', '2.5'); group.appendChild(line); item.months.forEach((v, m) => { const dot = document.createElementNS(NS, 'circle'); dot.setAttribute('cx', x(m)); dot.setAttribute('cy', y(v)); dot.setAttribute('r', '3.5'); dot.setAttribute('fill', '#fff'); dot.setAttribute('stroke', colors[item.index]); dot.setAttribute('stroke-width', '2'); const tip = document.createElementNS(NS, 'title'); tip.textContent = `${item.store} ${m + 1}月 ${v.toFixed(2)}%`; dot.appendChild(tip); group.appendChild(dot); }); svg.appendChild(group); }); return svg;
   };
   const draw = () => {
+    const targetValue = targets[categories[selectedCategory][0]];
     const r = root(); if (!r || !activeQuality()) { if (overlay) { overlay.remove(); overlay = null; lastCategory = null; } r?.querySelector('[data-quality-category-tabs]')?.remove(); r?.querySelector('.mt-6')?.style.removeProperty('display'); return; }
     const host = r.querySelector('.mt-6'); if (!host) return; const currentCategory = category();
     if (overlay && lastCategory === currentCategory) return;
