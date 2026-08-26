@@ -137,14 +137,6 @@
       });
     table.dataset.overviewMerged = 'true';
   };
-  const qualityMetrics = {
-    'TOP300调拨满足率': { unit: '%', target: '97%', values: [97.2, 97.5, 96.8, 97.8, 97.3, 97.6, 96.9, 97.4, 97.7, 97.1, 97.5, 97.9] },
-    '库存准确率': { unit: '%', target: '99%', values: [98.5, 98.8, 98.2, 98.6, 98.4, 98.7, 98.3, 98.9, 98.6, 98.4, 98.8, 98.7] },
-    '效期准确率': { unit: '%', target: '96%', values: [95.8, 96.1, 95.5, 96.3, 96.0, 96.4, 95.9, 96.2, 96.5, 96.1, 96.6, 96.4] },
-    '配送完好率': { unit: '%', target: '99.5%', values: [99.2, 99.3, 99.1, 99.4, 99.3, 99.5, 99.2, 99.6, 99.4, 99.3, 99.5, 99.6] },
-    '订单满足率': { unit: '%', target: '95%', values: [94.1, 94.5, 93.8, 94.7, 94.3, 94.8, 94.0, 94.6, 95.0, 94.4, 94.8, 95.1] }
-  };
-  const stores = ['三亚海棠湾店', '新海港店', '三亚凤凰机场店', '海口美兰机场店', '海口日月店', '博鳌店'];
   const qualityPanel = () => {
     const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
     const root = overview?.closest('.bg-gradient-to-br');
@@ -179,7 +171,63 @@
     };
     render();
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); qualityPanel(); };
+  const qualityMetricNames = ['香化调拨满足率', '库存准确率', '效期准确率', '邮寄遗失率', '邮寄破损率', '快递有责客诉率', '物流有责客诉率'];
+  const qualityMetricData = {
+    '香化调拨满足率': { target: 97, values: [95.2, 94.6, 96.1, 93.8, 95.7, 94.9] },
+    '库存准确率': { target: 99, values: [98.5, 98.8, 98.2, 98.6, 98.4, 98.7] },
+    '效期准确率': { target: 96, values: [95.8, 96.1, 95.5, 96.3, 96.0, 96.4] },
+    '邮寄遗失率': { target: 0.10, values: [0.08, 0.06, 0.11, 0.07, 0.09, 0.05] },
+    '邮寄破损率': { target: 0.10, values: [0.20, 0.16, 0.24, 0.18, 0.21, 0.14] },
+    '快递有责客诉率': { target: 0.10, values: [0.25, 0.22, 0.31, 0.19, 0.27, 0.18] },
+    '物流有责客诉率': { target: 0.10, values: [0.38, 0.34, 0.42, 0.29, 0.36, 0.27] }
+  };
+  const qualityStoreNames = ['三亚海棠湾店', '新海港店', '三亚凤凰机场店', '海口美兰机场店', '海口日月店', '博鳌店'];
+  const qualityPanelStyle = () => {
+    const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
+    const root = overview?.closest('.bg-gradient-to-br');
+    const qualityButton = root && Array.from(root.querySelectorAll('button')).find(el => el.textContent.includes('质量指标'));
+    const content = root?.querySelector('.mt-6');
+    if (!root || !qualityButton || !qualityButton.className.includes('bg-blue-600') || !content || content.dataset.qualityStyleReady === 'true') return;
+    content.dataset.qualityStyleReady = 'true';
+    let selectedMetric = qualityMetricNames[0];
+    let selectedStores = [...qualityStoreNames];
+    const render = () => {
+      const metric = qualityMetricData[selectedMetric];
+      const selected = selectedStores.length ? selectedStores : qualityStoreNames;
+      const values = selected.map((name, index) => ({ name, value: metric.values[qualityStoreNames.indexOf(name)] ?? metric.values[index % metric.values.length] }));
+      content.innerHTML = '';
+      const panel = document.createElement('div'); panel.className = 'space-y-5';
+      const metricTabs = document.createElement('div'); metricTabs.className = 'flex flex-wrap gap-2 rounded-lg border border-gray-200 bg-white p-3';
+      qualityMetricNames.forEach(name => { const button = document.createElement('button'); button.type = 'button'; button.textContent = name; button.className = `rounded-lg border px-3 py-2 text-sm font-semibold transition-all ${name === selectedMetric ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700'}`; button.onclick = () => { selectedMetric = name; render(); }; metricTabs.appendChild(button); }); panel.appendChild(metricTabs);
+      const storeFilter = document.createElement('div'); storeFilter.className = 'flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white p-3';
+      const label = document.createElement('span'); label.className = 'mr-2 text-sm font-semibold text-gray-700'; label.textContent = '门店'; storeFilter.appendChild(label);
+      const all = document.createElement('button'); all.type = 'button'; all.textContent = selectedStores.length === qualityStoreNames.length ? '取消全选' : '全选'; all.className = 'rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700'; all.onclick = () => { selectedStores = selectedStores.length === qualityStoreNames.length ? [] : [...qualityStoreNames]; render(); }; storeFilter.appendChild(all);
+      qualityStoreNames.forEach(name => { const button = document.createElement('button'); const active = selectedStores.includes(name); button.type = 'button'; button.textContent = name; button.setAttribute('aria-pressed', String(active)); button.className = `rounded-lg border px-3 py-2 text-sm transition-all ${active ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-500'}`; button.onclick = () => { selectedStores = active ? selectedStores.filter(item => item !== name) : [...selectedStores, name]; render(); }; storeFilter.appendChild(button); }); panel.appendChild(storeFilter);
+      const body = document.createElement('div'); body.className = 'grid grid-cols-1 gap-5 xl:grid-cols-2';
+      const colors = ['#2563eb', '#16a34a', '#f97316', '#9333ea', '#0891b2', '#dc2626'];
+      const visible = new Set(selected);
+      const bars = document.createElement('section'); bars.className = 'rounded-lg border border-gray-200 bg-white p-5'; bars.innerHTML = `<div class="mb-4 flex items-center justify-between"><h3 class="font-semibold text-gray-900">${selectedMetric}</h3><span class="text-xs text-gray-500">按门店</span></div>`;
+      const max = Math.max(...values.map(item => item.value), metric.target, 1); values.forEach((item, index) => { const row = document.createElement('div'); row.className = 'mb-4 grid grid-cols-[130px_1fr_70px] items-center gap-3'; row.innerHTML = `<span class="truncate text-sm text-gray-700" title="${item.name}">${item.name}</span><div class="h-7 rounded bg-gray-100"><div class="h-7 rounded" style="width:${Math.max(4, item.value / max * 100)}%;background:${colors[index % colors.length]}"></div></div><strong class="text-right text-sm text-gray-900">${item.value.toFixed(2)}%</strong>`; bars.appendChild(row); }); body.appendChild(bars);
+      const trend = document.createElement('section'); trend.className = 'rounded-lg border border-gray-200 bg-white p-5'; trend.innerHTML = `<h3 class="mb-4 font-semibold text-gray-900">月度趋势</h3>`;
+      const chart = document.createElement('div'); chart.className = 'grid h-64 grid-cols-12 items-end gap-2 border-b border-l border-gray-200 px-3 pb-2';
+      for (let month = 0; month < 12; month += 1) {
+        const column = document.createElement('div'); column.className = 'group flex h-full flex-col items-center justify-end gap-1';
+        const barsForMonth = document.createElement('div'); barsForMonth.className = 'flex h-full w-full items-end justify-center gap-0.5';
+        values.forEach((item, index) => { const bar = document.createElement('div'); const value = item.value + ((month % 4) - 1.5) * 0.12; bar.className = 'quality-store-series w-2 rounded-t transition-all'; bar.dataset.store = item.name; bar.style.height = `${Math.max(5, value / Math.max(metric.target, 1) * 100)}%`; bar.style.background = colors[index % colors.length]; bar.title = `${item.name} ${month + 1}月 ${value.toFixed(2)}%`; barsForMonth.appendChild(bar); });
+        column.appendChild(barsForMonth); const monthLabel = document.createElement('span'); monthLabel.className = 'text-[10px] text-gray-500'; monthLabel.textContent = `${month + 1}月`; column.appendChild(monthLabel); chart.appendChild(column);
+      }
+      trend.appendChild(chart);
+      const legend = document.createElement('div'); legend.className = 'mt-4 flex flex-wrap gap-3 text-xs'; values.forEach((item, index) => { const button = document.createElement('button'); button.type = 'button'; button.className = 'inline-flex items-center gap-1.5 text-gray-700'; button.innerHTML = `<span class="h-2.5 w-2.5 rounded-full" style="background:${colors[index % colors.length]}"></span>${item.name}`; button.onclick = () => { const on = !visible.has(item.name); if (on) visible.add(item.name); else visible.delete(item.name); button.classList.toggle('opacity-40', !on); chart.querySelectorAll(`[data-store="${item.name}"]`).forEach(bar => { bar.style.display = on ? '' : 'none'; }); bars.querySelectorAll('.mb-4')[index].style.display = on ? '' : 'none'; }; legend.appendChild(button); }); trend.appendChild(legend); body.appendChild(trend); panel.appendChild(body); content.appendChild(panel);
+    };
+    render();
+  };
+  const removeNonTop300 = () => {
+    document.querySelectorAll('div, span, h2, h3, h4').forEach(element => {
+      if (element.children.length) return;
+      if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
+    });
+  };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); qualityPanelStyle(); removeNonTop300(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
