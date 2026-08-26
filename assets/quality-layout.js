@@ -6,7 +6,7 @@
   const categories = { '调拨满足率':['香化调拨满足率'], '快递交付':['邮寄遗失率','邮寄破损率'], '客诉情况':['快递有责客诉率','物流有责客诉率'], '准确率盘点情况':['库存准确率','效期准确率'] };
   let overlay, lastCategory, selectedCategory = '调拨满足率';
   const root = () => document.querySelector('h2')?.closest('.bg-gradient-to-br');
-  const activeQuality = () => { const r = root(); return r && [...r.querySelectorAll('button')].some(b => b.textContent.includes('质量指标') && b.className.includes('bg-blue-600')); };
+  const activeQuality = () => { const r = root(); return r && [...r.querySelectorAll('button')].some(b => b.textContent.trim() === '质量指标' && (b.className.includes('scale-105') || b.className.includes('shadow-md'))); };
   const category = () => selectedCategory;
   const hideDuplicateCategoryTabs = () => {
     const r = root();
