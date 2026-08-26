@@ -368,7 +368,7 @@
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); renderQualityCategoriesV2(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
