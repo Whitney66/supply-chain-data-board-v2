@@ -265,13 +265,37 @@
     render();
     setInterval(() => { const next = findCategory(); if (next !== category) { category = next; render(); } }, 300);
   };
+  const updateQualityChart = () => {
+    const title = Array.from(document.querySelectorAll('h3')).find(el => el.textContent.trim() === '月度趋势');
+    const panel = title?.closest('.bg-white');
+    if (!panel || panel.dataset.qualityChartUpdated === 'true') return;
+    const legendTexts = Array.from(panel.querySelectorAll('text, span')).filter(el => /TOP300|非TOP300/.test(el.textContent || ''));
+    if (!legendTexts.length) return;
+    // Keep the TOP300 series as the selected store series and remove the non-TOP300 series.
+    const names = ['三亚海棠湾店', '新海港店'];
+    legendTexts.forEach((el, index) => {
+      if (el.textContent.includes('TOP300') && !el.textContent.includes('非')) el.textContent = names[0];
+      if (el.textContent.includes('非TOP300')) {
+        const legendItem = el.closest('g, li, span');
+        if (legendItem) legendItem.remove();
+      }
+    });
+    // Hide the second plotted series and its markers while keeping the existing chart layout.
+    const svg = panel.querySelector('svg');
+    if (svg) {
+      const paths = Array.from(svg.querySelectorAll('path')).filter(path => path.getAttribute('stroke'));
+      const colored = paths.filter(path => !['#ccc', '#e5e7eb', '#f0f0f0'].includes(path.getAttribute('stroke')));
+      colored.slice(1, 2).forEach(path => { path.style.display = 'none'; });
+    }
+    panel.dataset.qualityChartUpdated = 'true';
+  };
   const removeNonTop300 = () => {
     document.querySelectorAll('div, span, h2, h3, h4').forEach(element => {
       if (element.children.length) return;
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); updateQualityChart(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
