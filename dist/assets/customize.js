@@ -82,7 +82,7 @@
     title.parentElement.appendChild(wrap);
   };
   const hideRequestedMetrics = () => {
-    const hidden = ['3.2.3 直入直出全链路平均时效（监管仓-卖场）', '3.6.1 监管仓/周转仓-预定仓全链路平均时效'];
+    const hidden = ['直入直出全链路平均时效（监管仓-卖场）', '监管仓/周转仓-预定仓全链路平均时效'];
     getTables().forEach(table => {
       Array.from(table.tBodies || []).forEach(body => Array.from(body.rows).forEach(row => {
         if (hidden.some(name => (row.textContent || '').includes(name))) row.remove();
