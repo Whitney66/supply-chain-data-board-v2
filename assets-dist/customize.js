@@ -18,13 +18,29 @@
     header.textContent = '票数达标率';
     header.dataset.trendColumn = 'ticket';
     headers[currentIndex].after(header);
+    const updatedHeaders = Array.from(headerRow.cells);
+    const pieceIndex = updatedHeaders.findIndex(cell => cell.textContent.trim() === '件数达标率');
+    if (pieceIndex >= 0) {
+      updatedHeaders[pieceIndex].dataset.trendColumn = 'piece';
+      updatedHeaders[pieceIndex].classList.add('border-r-2', 'border-gray-300');
+    }
     Array.from(body.rows).forEach((row, index) => {
       if (!row.cells.length) return;
+      const cells = Array.from(row.cells);
       const cell = document.createElement('td');
       cell.className = 'px-3 py-2 text-center font-semibold text-gray-900';
       cell.textContent = ticketRates[index % ticketRates.length];
       cell.dataset.trendColumn = 'ticket';
-      row.cells[Math.min(currentIndex + 1, row.cells.length - 1)].before(cell);
+      const insertAt = Math.min(currentIndex + 1, cells.length - 1);
+      cells[insertAt].before(cell);
+      const updatedCells = Array.from(row.cells);
+      const pieceCell = updatedCells[pieceIndex];
+      if (pieceCell) {
+        pieceCell.dataset.trendColumn = 'piece';
+        pieceCell.classList.add('border-r-2', 'border-gray-300');
+        const nextCell = updatedCells[pieceIndex + 1];
+        if (nextCell) nextCell.classList.add('border-l-2', 'border-gray-300');
+      }
     });
     table.dataset.ticketRateReady = 'true';
   };
