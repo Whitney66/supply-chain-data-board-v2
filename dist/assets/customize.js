@@ -224,13 +224,51 @@
     };
     render();
   };
+  const categoryQualityPanel = () => {
+    const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
+    const root = overview?.closest('.bg-gradient-to-br');
+    const content = root?.querySelector('.mt-6');
+    if (!root || !content || !content.dataset.qualityStyleReady || content.dataset.categoryQualityReady === 'true') return;
+    content.dataset.categoryQualityReady = 'true';
+    const categories = {
+      '调拨满足率': ['香化调拨满足率'],
+      '快递交付': ['邮寄遗失率', '邮寄破损率'],
+      '客诉情况': ['快递有责客诉率', '物流有责客诉率'],
+      '准确率盘点情况': ['库存准确率', '效期准确率']
+    };
+    const colors = ['#2563eb', '#16a34a', '#f97316', '#9333ea', '#0891b2', '#dc2626'];
+    const findCategory = () => Object.keys(categories).find(name => Array.from(root.querySelectorAll('button')).some(button => button.textContent.includes(name) && button.className.includes('scale-105'))) || '调拨满足率';
+    let category = findCategory();
+    let selectedStores = [...qualityStoreNames];
+    let hiddenStores = new Set();
+    const render = () => {
+      const names = categories[category] || categories['调拨满足率'];
+      content.innerHTML = '';
+      const filter = document.createElement('div'); filter.className = 'relative z-30 mb-5 flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3';
+      const label = document.createElement('span'); label.className = 'text-sm font-semibold text-gray-700'; label.textContent = '门店'; filter.appendChild(label);
+      const selectWrap = document.createElement('div'); selectWrap.className = 'relative';
+      const selectButton = document.createElement('button'); selectButton.type = 'button'; selectButton.className = 'min-w-[220px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-700'; selectButton.textContent = selectedStores.length === qualityStoreNames.length ? '全部门店' : `已选 ${selectedStores.length} 家门店`;
+      const menu = document.createElement('div'); menu.className = 'absolute left-0 top-full mt-1 hidden w-64 rounded-lg border border-gray-200 bg-white p-2 shadow-lg';
+      const all = document.createElement('label'); all.className = 'flex cursor-pointer items-center gap-2 border-b border-gray-100 px-2 py-2 text-sm font-medium'; all.innerHTML = `<input type="checkbox" ${selectedStores.length === qualityStoreNames.length ? 'checked' : ''}>全部门店`; all.querySelector('input').onchange = event => { selectedStores = event.target.checked ? [...qualityStoreNames] : []; render(); }; menu.appendChild(all);
+      qualityStoreNames.forEach(name => { const option = document.createElement('label'); option.className = 'flex cursor-pointer items-center gap-2 px-2 py-2 text-sm text-gray-700 hover:bg-gray-50'; option.innerHTML = `<input type="checkbox" ${selectedStores.includes(name) ? 'checked' : ''}>${name}`; option.querySelector('input').onchange = event => { selectedStores = event.target.checked ? [...selectedStores, name] : selectedStores.filter(item => item !== name); render(); }; menu.appendChild(option); });
+      selectButton.onclick = () => menu.classList.toggle('hidden'); selectWrap.appendChild(selectButton); selectWrap.appendChild(menu); filter.appendChild(selectWrap); content.appendChild(filter);
+      names.forEach((metricName, metricIndex) => {
+        const data = qualityMetricData[metricName]; const panel = document.createElement('section'); panel.className = 'mb-5 grid grid-cols-1 gap-5 xl:grid-cols-2';
+        const barPanel = document.createElement('div'); barPanel.className = 'rounded-lg border border-gray-200 bg-white p-5'; barPanel.innerHTML = `<h3 class="mb-4 font-semibold text-gray-900">${metricName}</h3>`;
+        const max = Math.max(data.target, ...data.values, 1); selectedStores.forEach((store, index) => { const value = data.values[index % data.values.length]; const row = document.createElement('div'); row.className = 'mb-3 grid grid-cols-[130px_1fr_70px] items-center gap-3'; row.innerHTML = `<span class="truncate text-sm text-gray-700">${store}</span><div class="h-7 rounded bg-gray-100"><div class="h-7 rounded" style="width:${Math.max(4, value / max * 100)}%;background:${colors[index % colors.length]}"></div></div><strong class="text-right text-sm text-gray-900">${value.toFixed(2)}%</strong>`; barPanel.appendChild(row); }); panel.appendChild(barPanel);
+        const linePanel = document.createElement('div'); linePanel.className = 'rounded-lg border border-gray-200 bg-white p-5'; linePanel.innerHTML = `<h3 class="mb-4 font-semibold text-gray-900">${metricName} · 月度趋势</h3>`; const chart = document.createElement('div'); chart.className = 'relative h-56 border-b border-l border-gray-200'; selectedStores.forEach((store, index) => { const series = document.createElement('div'); series.dataset.store = store; series.className = 'absolute inset-x-0'; series.style.top = `${15 + index * (70 / Math.max(selectedStores.length, 1))}%`; for (let month = 0; month < 12; month += 1) { const point = document.createElement('span'); const value = data.values[index % data.values.length] + ((month % 4) - 1.5) * 0.12; point.className = 'absolute h-2.5 w-2.5 -translate-x-1/2 rounded-full'; point.style.left = `${month / 11 * 100}%`; point.style.background = colors[index % colors.length]; point.title = `${store} ${month + 1}月 ${value.toFixed(2)}%`; series.appendChild(point); } chart.appendChild(series); }); linePanel.appendChild(chart); const legend = document.createElement('div'); legend.className = 'mt-4 flex flex-wrap gap-3 text-xs'; selectedStores.forEach((store, index) => { const button = document.createElement('button'); button.type = 'button'; button.className = 'inline-flex items-center gap-1.5 text-gray-700'; button.innerHTML = `<span class="h-2.5 w-2.5 rounded-full" style="background:${colors[index % colors.length]}"></span>${store}`; button.onclick = () => { const hidden = hiddenStores.has(store); if (hidden) hiddenStores.delete(store); else hiddenStores.add(store); button.classList.toggle('opacity-40', !hidden); chart.querySelectorAll(`[data-store="${store}"]`).forEach(series => { series.hidden = !hidden; }); }; legend.appendChild(button); }); linePanel.appendChild(legend); panel.appendChild(linePanel); content.appendChild(panel);
+      });
+    };
+    render();
+    setInterval(() => { const next = findCategory(); if (next !== category) { category = next; render(); } }, 300);
+  };
   const removeNonTop300 = () => {
     document.querySelectorAll('div, span, h2, h3, h4').forEach(element => {
       if (element.children.length) return;
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); qualityPanelStyle(); removeNonTop300(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); qualityPanelStyle(); categoryQualityPanel(); removeNonTop300(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
