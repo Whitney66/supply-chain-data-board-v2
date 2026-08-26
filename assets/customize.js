@@ -137,7 +137,49 @@
       });
     table.dataset.overviewMerged = 'true';
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); };
+  const qualityMetrics = {
+    'TOP300调拨满足率': { unit: '%', target: '97%', values: [97.2, 97.5, 96.8, 97.8, 97.3, 97.6, 96.9, 97.4, 97.7, 97.1, 97.5, 97.9] },
+    '库存准确率': { unit: '%', target: '99%', values: [98.5, 98.8, 98.2, 98.6, 98.4, 98.7, 98.3, 98.9, 98.6, 98.4, 98.8, 98.7] },
+    '效期准确率': { unit: '%', target: '96%', values: [95.8, 96.1, 95.5, 96.3, 96.0, 96.4, 95.9, 96.2, 96.5, 96.1, 96.6, 96.4] },
+    '配送完好率': { unit: '%', target: '99.5%', values: [99.2, 99.3, 99.1, 99.4, 99.3, 99.5, 99.2, 99.6, 99.4, 99.3, 99.5, 99.6] },
+    '订单满足率': { unit: '%', target: '95%', values: [94.1, 94.5, 93.8, 94.7, 94.3, 94.8, 94.0, 94.6, 95.0, 94.4, 94.8, 95.1] }
+  };
+  const stores = ['三亚海棠湾店', '新海港店', '三亚凤凰机场店', '海口美兰机场店', '海口日月店', '博鳌店'];
+  const qualityPanel = () => {
+    const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
+    const root = overview?.closest('.bg-gradient-to-br');
+    const qualityButton = root && Array.from(root.querySelectorAll('button')).find(el => el.textContent.includes('质量指标'));
+    if (!root || !qualityButton || !qualityButton.className.includes('bg-blue-600')) return;
+    const content = root.querySelector('.mt-6');
+    if (!content || content.dataset.qualityRebuilt === 'true') return;
+    content.dataset.qualityRebuilt = 'true';
+    let metric = '库存准确率';
+    let selected = [...stores];
+    const render = () => {
+      const data = qualityMetrics[metric];
+      const average = data.values.reduce((a, b) => a + b, 0) / data.values.length;
+      const selectedValues = selected.map((_, index) => Number((average + ((index % 3) - 1) * 0.18).toFixed(1)));
+      content.innerHTML = '';
+      const wrap = document.createElement('div');
+      wrap.className = 'space-y-5';
+      const controls = document.createElement('div');
+      controls.className = 'flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white p-3';
+      const metricLabel = document.createElement('span'); metricLabel.className = 'text-sm font-semibold text-gray-700'; metricLabel.textContent = '质量指标'; controls.appendChild(metricLabel);
+      const metricSelect = document.createElement('select'); metricSelect.className = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700';
+      Object.keys(qualityMetrics).forEach(name => { const option = document.createElement('option'); option.value = name; option.textContent = name; option.selected = name === metric; metricSelect.appendChild(option); });
+      metricSelect.onchange = () => { metric = metricSelect.value; render(); }; controls.appendChild(metricSelect);
+      const storeLabel = document.createElement('span'); storeLabel.className = 'ml-2 text-sm font-semibold text-gray-700'; storeLabel.textContent = '门店'; controls.appendChild(storeLabel);
+      const storeBox = document.createElement('div'); storeBox.className = 'flex flex-wrap gap-2';
+      stores.forEach(name => { const button = document.createElement('button'); const active = selected.includes(name); button.type = 'button'; button.className = `rounded-lg border px-3 py-2 text-sm font-medium transition-all ${active ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-500'}`; button.textContent = name; button.setAttribute('aria-pressed', String(active)); button.onclick = () => { selected = active ? selected.filter(item => item !== name) : [...selected, name]; render(); }; storeBox.appendChild(button); }); controls.appendChild(storeBox); wrap.appendChild(controls);
+      const grid = document.createElement('div'); grid.className = 'grid grid-cols-1 gap-5 xl:grid-cols-3';
+      const kpi = document.createElement('div'); kpi.className = 'rounded-lg border border-gray-200 bg-white p-5 xl:col-span-1'; kpi.innerHTML = `<div class="mb-5 flex items-center justify-between"><h3 class="font-semibold text-gray-900">${metric}</h3><span class="rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">目标 ${data.target}</span></div><div class="text-4xl font-bold text-gray-900">${average.toFixed(1)}${data.unit}</div><div class="mt-5 h-3 rounded-full bg-gray-100"><div class="h-3 rounded-full bg-blue-600" style="width:${Math.min(100, average)}%"></div></div><div class="mt-2 text-xs text-gray-500">已选 ${selected.length} 家门店</div>`; grid.appendChild(kpi);
+      const chart = document.createElement('div'); chart.className = 'rounded-lg border border-gray-200 bg-white p-5 xl:col-span-2'; chart.innerHTML = '<h3 class="mb-4 font-semibold text-gray-900">月度趋势</h3>';
+      const bars = document.createElement('div'); bars.className = 'grid h-56 grid-cols-12 items-end gap-2 border-b border-l border-gray-200 px-3 pb-2'; data.values.forEach((value, index) => { const column = document.createElement('div'); column.className = 'group flex h-full flex-col items-center justify-end gap-1'; column.innerHTML = `<span class="text-[10px] text-gray-500 opacity-0 group-hover:opacity-100">${value}%</span><div class="w-full rounded-t bg-blue-500 transition-all group-hover:bg-blue-700" style="height:${Math.max(8, value)}%" title="${index + 1}月 ${value}%"></div><span class="text-[10px] text-gray-500">${index + 1}月</span>`; bars.appendChild(column); }); chart.appendChild(bars); grid.appendChild(chart); wrap.appendChild(grid);
+      const table = document.createElement('div'); table.className = 'overflow-x-auto rounded-lg border border-gray-200 bg-white'; table.innerHTML = `<div class="border-b border-gray-200 px-5 py-4"><h3 class="font-semibold text-gray-900">门店明细</h3></div><table class="w-full min-w-[900px] text-sm"><thead class="bg-gray-50"><tr><th class="px-4 py-3 text-left">门店</th><th class="px-4 py-3 text-center">月度均值</th>${data.values.map((_, index) => `<th class="px-3 py-3 text-center">${index + 1}月</th>`).join('')}</tr></thead><tbody>${selected.map((name, index) => `<tr class="border-t border-gray-100"><td class="px-4 py-3 font-medium text-gray-700">${name}</td><td class="px-4 py-3 text-center font-semibold text-gray-900">${selectedValues[index]}%</td>${data.values.map(value => `<td class="px-3 py-3 text-center text-gray-600">${(value + (index % 2 ? -0.3 : 0.2)).toFixed(1)}%</td>`).join('')}</tr>`).join('')}</tbody></table>`; wrap.appendChild(table); content.appendChild(wrap);
+    };
+    render();
+  };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); qualityPanel(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
