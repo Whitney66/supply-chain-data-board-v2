@@ -318,6 +318,20 @@
       });
     });
   };
+  const normalizeStoreStageNode = () => {
+    document.querySelectorAll('table').forEach(table => {
+      const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
+      const nodeIndex = headers.indexOf('业务节点');
+      if (nodeIndex < 0) return;
+      const stageIndex = headers.indexOf('业务环节');
+      Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows)).forEach(row => {
+        const cells = Array.from(row.cells);
+        if (!cells.some(cell => cell.textContent.includes('卖场-分拣仓'))) return;
+        if (stageIndex >= 0 && cells[stageIndex]?.textContent.includes('卖场-分拣仓')) cells[stageIndex].textContent = '3.门店段';
+        if (cells[nodeIndex]?.textContent.includes('卖场-分拣仓')) cells[nodeIndex].textContent = '3.3卖场-分拣仓';
+      });
+    });
+  };
   const renderTransferQuality = () => {
     const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
     const root = overview?.closest('.bg-gradient-to-br');
@@ -397,7 +411,7 @@
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); normalizeStoreStageNode(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
