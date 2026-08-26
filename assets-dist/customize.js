@@ -289,13 +289,40 @@
     }
     panel.dataset.qualityChartUpdated = 'true';
   };
+  const renderTransferQuality = () => {
+    const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
+    const root = overview?.closest('.bg-gradient-to-br');
+    const qualityTab = root && Array.from(root.querySelectorAll('button')).find(button => button.textContent.includes('质量指标') && button.className.includes('bg-blue-600'));
+    const content = root?.querySelector('.mt-6');
+    if (!root || !qualityTab || !content || content.dataset.transferQualityReady === 'true') return;
+    content.dataset.transferQualityReady = 'true';
+    const stores = ['三亚海棠湾店', '新海港店', '三亚凤凰机场店', '海口美兰机场店', '海口日月店', '博鳌店'];
+    const colors = ['#2563eb', '#16a34a', '#f97316', '#9333ea', '#0891b2', '#dc2626'];
+    const base = [95.2, 94.6, 96.1, 93.8, 95.7, 94.9];
+    let selectedStores = [...stores];
+    const render = () => {
+      const values = selectedStores.map(store => {
+        const index = stores.indexOf(store);
+        return { store, index, months: Array.from({length: 12}, (_, month) => Number((base[index] + ((month % 4) - 1.5) * 0.35 + (index % 2 ? -0.15 : 0.1)).toFixed(1))) };
+      });
+      content.innerHTML = '';
+      const filter = document.createElement('div'); filter.className = 'mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white p-3';
+      const filterLabel = document.createElement('span'); filterLabel.className = 'text-sm font-semibold text-gray-700'; filterLabel.textContent = '门店'; filter.appendChild(filterLabel);
+      const select = document.createElement('select'); select.multiple = true; select.size = 1; select.className = 'min-w-[240px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700'; stores.forEach(store => { const option = document.createElement('option'); option.value = store; option.textContent = store; option.selected = selectedStores.includes(store); select.appendChild(option); }); select.title = '按住 Ctrl/Command 可多选门店'; select.onchange = () => { selectedStores = Array.from(select.selectedOptions).map(option => option.value); render(); }; filter.appendChild(select); const hint = document.createElement('span'); hint.className = 'text-xs text-gray-500'; hint.textContent = '支持多选，按住 Ctrl/Command 选择多个门店'; filter.appendChild(hint); content.appendChild(filter);
+      const row = document.createElement('div'); row.className = 'grid grid-cols-1 gap-4 xl:grid-cols-2';
+      const barPanel = document.createElement('section'); barPanel.className = 'rounded-lg border border-gray-200 bg-white p-4'; barPanel.innerHTML = '<h3 class="mb-4 font-semibold text-gray-900">香化调拨满足率 · 当前值</h3>'; const max = 100; values.forEach(item => { const line = document.createElement('div'); line.className = 'mb-3 grid grid-cols-[128px_1fr_58px] items-center gap-2'; line.innerHTML = `<span class="truncate text-xs text-gray-700" title="${item.store}">${item.store}</span><div class="h-6 rounded bg-gray-100"><div class="h-6 rounded" style="width:${item.months[11] / max * 100}%;background:${colors[item.index]}"></div></div><strong class="text-right text-xs text-gray-900">${item.months[11]}%</strong>`; barPanel.appendChild(line); }); row.appendChild(barPanel);
+      const linePanel = document.createElement('section'); linePanel.className = 'rounded-lg border border-gray-200 bg-white p-4'; linePanel.innerHTML = '<h3 class="mb-2 font-semibold text-gray-900">香化调拨满足率 · 月度趋势</h3>'; const chart = document.createElement('div'); chart.className = 'relative h-56 border-b border-l border-gray-200'; values.forEach(item => { const series = document.createElement('div'); series.className = 'absolute inset-x-0'; series.dataset.store = item.store; series.style.height = '100%'; item.months.forEach((value, month) => { const point = document.createElement('span'); point.className = 'absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white'; point.style.left = `${month / 11 * 100}%`; point.style.top = `${100 - value}%`; point.style.background = colors[item.index]; point.title = `${item.store} ${month + 1}月 ${value}%`; series.appendChild(point); }); chart.appendChild(series); }); linePanel.appendChild(chart); const legend = document.createElement('div'); legend.className = 'mt-3 flex flex-wrap gap-3 text-xs'; values.forEach(item => { const button = document.createElement('button'); button.type = 'button'; button.className = 'inline-flex items-center gap-1.5 text-gray-700'; button.innerHTML = `<span class="h-2.5 w-2.5 rounded-full" style="background:${colors[item.index]}"></span>${item.store}`; button.onclick = () => { const series = chart.querySelector(`[data-store="${item.store}"]`); const hidden = series.hidden; series.hidden = !hidden; button.classList.toggle('opacity-40', !hidden); }; legend.appendChild(button); }); linePanel.appendChild(legend); row.appendChild(linePanel); content.appendChild(row);
+      const table = document.createElement('div'); table.className = 'mt-4 overflow-x-auto rounded-lg border border-gray-200 bg-white'; table.innerHTML = `<table class="w-full min-w-[900px] text-xs"><thead class="bg-gray-50"><tr><th class="px-3 py-2 text-left">门店</th>${Array.from({length: 12}, (_, month) => `<th class="px-3 py-2 text-center">${month + 1}月</th>`).join('')}</tr></thead><tbody>${values.map(item => `<tr class="border-t border-gray-100"><td class="px-3 py-2 font-medium">${item.store}</td>${item.months.map(value => `<td class="px-3 py-2 text-center">${value}%</td>`).join('')}</tr>`).join('')}</tbody></table>`; content.appendChild(table);
+    };
+    render();
+  };
   const removeNonTop300 = () => {
     document.querySelectorAll('div, span, h2, h3, h4').forEach(element => {
       if (element.children.length) return;
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); updateQualityChart(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); renderTransferQuality(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
