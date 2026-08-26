@@ -10,6 +10,21 @@
     const headerRow = table.tHead?.rows?.[0];
     const body = table.tBodies?.[0];
     if (!headerRow || !body) return;
+    const trendRows = Array.from(body.rows);
+    const mergeTrendGroup = (matches, label) => {
+      const matched = trendRows.filter(row => matches.some(name => (row.textContent || '').includes(name)));
+      if (!matched.length) return;
+      const keep = matched[0];
+      const labelCell = keep.cells[0];
+      if (labelCell) {
+        labelCell.childNodes[0].textContent = label;
+        keep.classList.add('bg-amber-50');
+        labelCell.classList.add('border-l-4', 'border-amber-500', 'bg-amber-100');
+      }
+      matched.slice(1).forEach(row => row.remove());
+    };
+    mergeTrendGroup(['提货点提货全链路平均时效', '预定仓配送全链路平均时效'], '3.5.1 配送全链路平均时效（急件）');
+    mergeTrendGroup(['邮寄全链路平均时效', '预定仓邮寄全链路平均时效'], '3.4.1 邮寄全链路平均时效');
     const headers = Array.from(headerRow.cells);
     const currentIndex = headers.findIndex(cell => cell.textContent.trim() === '当前平均值');
     if (currentIndex < 0) return;
