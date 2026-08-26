@@ -79,14 +79,26 @@
       if (table.dataset.overviewMerged === 'true') return;
       const text = table.closest('div')?.textContent || '';
       if (!text.includes('各链路时效指标')) return;
-      Array.from(table.tBodies || []).forEach(body => Array.from(body.rows).forEach(row => {
-        const cell = row.cells[1];
-        const metric = cell?.textContent || '';
-        if (!cell) return;
-        if (metric.includes('提货点提货全链路平均时效') || metric.includes('预定仓配送全链路平均时效')) cell.childNodes[0].textContent = '3.5.1 配送全链路平均时效（急件）';
-        if (metric.includes('预定仓邮寄全链路平均时效')) row.remove();
-        else if (metric.includes('邮寄全链路平均时效')) cell.childNodes[0].textContent = '3.4.1 邮寄全链路平均时效';
-      }));
+      Array.from(table.tBodies || []).forEach(body => {
+        const rows = Array.from(body.rows);
+        const mergeGroup = (matches, label, tone) => {
+          const matched = rows.filter(row => matches.some(name => (row.cells[1]?.textContent || '').includes(name)));
+          if (!matched.length) return;
+          const keep = matched[0];
+          const cell = keep.cells[1];
+          if (!cell) return;
+          cell.childNodes[0].textContent = label;
+          keep.classList.add(tone === 'amber' ? 'bg-amber-50' : 'bg-sky-50');
+          cell.classList.add('border-l-4', tone === 'amber' ? 'border-amber-500' : 'border-sky-500', tone === 'amber' ? 'bg-amber-100' : 'bg-sky-100');
+          const badge = document.createElement('span');
+          badge.className = `ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold ${tone === 'amber' ? 'bg-amber-200 text-amber-900' : 'bg-sky-200 text-sky-900'}`;
+          badge.textContent = '已合并';
+          cell.appendChild(badge);
+          matched.slice(1).forEach(row => row.remove());
+        };
+        mergeGroup(['提货点提货全链路平均时效', '预定仓配送全链路平均时效'], '3.5.1 配送全链路平均时效（急件）', 'amber');
+        mergeGroup(['邮寄全链路平均时效', '预定仓邮寄全链路平均时效'], '3.4.1 邮寄全链路平均时效', 'sky');
+      });
       table.dataset.overviewMerged = 'true';
     });
   };
