@@ -5,8 +5,8 @@
   const metrics = { '香化调拨满足率': [95.2,95.2,94.6,96.1,93.8,95.7,94.9], '库存准确率': [98.8,98.5,98.8,98.2,98.6,98.4,98.7], '效期准确率': [96.2,95.8,96.1,95.5,96.3,96,96.4], '邮寄遗失率': [.07,.08,.06,.11,.07,.09,.05], '邮寄破损率': [.18,.2,.16,.24,.18,.21,.14], '快递有责客诉率': [.22,.25,.22,.31,.19,.27,.18], '物流有责客诉率': [.35,.38,.34,.42,.29,.36,.27] };
   const categories = { '调拨满足率':['香化调拨满足率'], '快递交付':['邮寄遗失率','邮寄破损率'], '客诉情况':['快递有责客诉率','物流有责客诉率'], '准确率盘点情况':['库存准确率','效期准确率'] };
   let overlay, lastCategory, selectedCategory = '调拨满足率';
-  const root = () => document.querySelector('h2')?.closest('.bg-gradient-to-br');
-  const activeQuality = () => { const r = root(); return r && [...r.querySelectorAll('button')].some(b => b.textContent.trim() === '质量指标' && (b.className.includes('scale-105') || b.className.includes('shadow-md'))); };
+  const root = () => [...document.querySelectorAll('h2')].find(el => el.textContent.trim() === '指标总览')?.closest('.bg-gradient-to-br');
+  const activeQuality = () => { const r = root(); return r && [...r.querySelectorAll('button')].some(b => b.textContent.includes('质量指标') && (b.className.includes('scale-105') || b.className.includes('shadow-md'))); };
   const category = () => selectedCategory;
   const hideDuplicateCategoryTabs = () => {
     const r = root();
