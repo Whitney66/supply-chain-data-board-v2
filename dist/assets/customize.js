@@ -75,11 +75,11 @@
     });
   };
   const mergeOverview = () => {
-    Array.from(document.querySelectorAll('table')).forEach(table => {
-      if (table.dataset.overviewMerged === 'true') return;
-      const text = table.closest('div')?.textContent || '';
-      if (!text.includes('各链路时效指标')) return;
-      Array.from(table.tBodies || []).forEach(body => {
+    const title = Array.from(document.querySelectorAll('h3')).find(el => el.textContent.trim() === '各链路时效指标');
+    const panel = title?.closest('.bg-white');
+    const table = panel?.querySelector('table');
+    if (!table || table.dataset.overviewMerged === 'true') return;
+    Array.from(table.tBodies || []).forEach(body => {
         const rows = Array.from(body.rows);
         const mergeGroup = (matches, label, tone) => {
           const matched = rows.filter(row => matches.some(name => (row.cells[1]?.textContent || '').includes(name)));
@@ -99,8 +99,7 @@
         mergeGroup(['提货点提货全链路平均时效', '预定仓配送全链路平均时效'], '3.5.1 配送全链路平均时效（急件）', 'amber');
         mergeGroup(['邮寄全链路平均时效', '预定仓邮寄全链路平均时效'], '3.4.1 邮寄全链路平均时效', 'sky');
       });
-      table.dataset.overviewMerged = 'true';
-    });
+    table.dataset.overviewMerged = 'true';
   };
   const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); };
   const start = () => { run(); setInterval(run, 300); };
