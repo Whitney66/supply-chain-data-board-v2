@@ -228,7 +228,8 @@
     const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
     const root = overview?.closest('.bg-gradient-to-br');
     const content = root?.querySelector('.mt-6');
-    if (!root || !content || !content.dataset.qualityStyleReady || content.dataset.categoryQualityReady === 'true') return;
+    if (!root || !content) return;
+    if (content.dataset.categoryQualityReady === 'true' && !root.querySelector('[data-quality-category-panel]')) return;
     content.dataset.categoryQualityReady = 'true';
     const categories = {
       '调拨满足率': ['香化调拨满足率'],
