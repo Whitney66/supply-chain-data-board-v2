@@ -359,9 +359,13 @@
       if (!targetRow) return;
       const precedingRow = rows.slice(0, rows.indexOf(targetRow)).reverse().find(row => row.textContent.includes('2.周转仓-卖场'));
       const stageCell = precedingRow && Array.from(precedingRow.cells).find(cell => cell.textContent.includes('2.周转仓-卖场'));
-      if (stageCell) stageCell.rowSpan = 1;
+      if (stageCell) stageCell.removeAttribute('rowspan');
       const targetStageCell = Array.from(targetRow.cells).find(cell => cell.textContent.includes('3.卖场-分拣仓'));
-      if (targetStageCell && targetStageCell.cellIndex > 0 && targetStageCell.previousElementSibling?.textContent.trim() === '') targetRow.insertBefore(targetStageCell, targetRow.firstElementChild);
+      const targetMetricCell = Array.from(targetRow.cells).find(cell => cell.textContent.includes('3.1卖场-分拣仓入库平均时效'));
+      if (targetStageCell && targetMetricCell) {
+        targetRow.insertBefore(targetStageCell, targetRow.firstElementChild);
+        targetRow.insertBefore(targetMetricCell, targetStageCell.nextElementSibling);
+      }
     });
   };
   const normalizeExceptionMetricScope = () => {
