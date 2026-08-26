@@ -300,6 +300,24 @@
       button.hidden = !allowed;
     });
   };
+  const normalizeTimingTargetUnits = () => {
+    const dayMetrics = ['全链路订货平均时效（一盘货）', '提货至海综保平均时效'];
+    const timingNames = ['全链路订货平均时效（一盘货）', '一线通关平均时效', '提货至海综保平均时效', '仓库入库平均时效', '全链路入库平均时效', '全链路分货平均时效', '仓库出库平均时效', '二线通关平均时效', '门店提货至上架平均时效', '监管仓-周转仓调拨平均时效', '周转仓-卖场调拨平均时效', '直入直出全链路平均时效', '分拣仓入库平均时效', '邮寄全链路平均时效', '配送全链路平均时效', '预定仓邮寄全链路平均时效', '预定仓配送全链路平均时效'];
+    document.querySelectorAll('table').forEach(table => {
+      const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
+      const targetIndex = headers.findIndex(header => header === '目标值' || header.includes('目标值'));
+      if (targetIndex < 0) return;
+      let currentMetric = '';
+      Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows)).forEach(row => {
+        const text = row.textContent || '';
+        const matchedMetric = timingNames.find(name => text.includes(name));
+        if (matchedMetric) currentMetric = matchedMetric;
+        if (!currentMetric || dayMetrics.some(name => currentMetric.includes(name))) return;
+        const targetCell = row.cells[targetIndex];
+        if (targetCell) targetCell.innerHTML = targetCell.innerHTML.replace(/(\d+(?:\.\d+)?)D\b/g, '$1H');
+      });
+    });
+  };
   const renderTransferQuality = () => {
     const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
     const root = overview?.closest('.bg-gradient-to-br');
@@ -379,7 +397,7 @@
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
