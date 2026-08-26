@@ -88,6 +88,27 @@
         if (hidden.some(name => (row.textContent || '').includes(name))) row.remove();
       }));
     });
+    document.querySelectorAll('option').forEach(option => {
+      if (hidden.some(name => option.textContent.includes(name))) option.remove();
+    });
+    document.querySelectorAll('button, label, span, div').forEach(element => {
+      if (element.children.length) return;
+      const text = element.textContent.trim();
+      if (hidden.some(name => text.includes(name))) element.closest('button, label')?.remove();
+    });
+  };
+  const normalizeMetricLabels = () => {
+    const replacements = [
+      ['提货点提货全链路平均时效', '配送全链路平均时效（急件）'],
+      ['预定仓配送全链路平均时效', '配送全链路平均时效（急件）'],
+      ['预定仓邮寄全链路平均时效', '邮寄全链路平均时效']
+    ];
+    document.querySelectorAll('option, button, label, span, td, th, div, p').forEach(element => {
+      if (element.children.length) return;
+      const old = element.textContent.trim();
+      const replacement = replacements.find(([from]) => old.includes(from));
+      if (replacement) element.textContent = old.replace(replacement[0], replacement[1]);
+    });
   };
   const mergeOverview = () => {
     const title = Array.from(document.querySelectorAll('h3')).find(el => el.textContent.trim() === '各链路时效指标');
@@ -116,7 +137,7 @@
       });
     table.dataset.overviewMerged = 'true';
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
