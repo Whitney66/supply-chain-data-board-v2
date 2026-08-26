@@ -302,6 +302,7 @@
   };
   const normalizeTimingTargetUnits = () => {
     const dayMetrics = ['全链路订货平均时效（一盘货）', '提货至海综保平均时效'];
+    const formatHours = value => `${(Number(value) * 24).toFixed(2).replace(/\.00$/, '')}H`;
     const targets = { '全链路订货平均时效（一盘货）': { '香化仓': '11（天）', '酒水仓': '7（天）' }, '一线通关平均时效': { default: '72小时' }, '提货至海综保平均时效': { default: '2.5（天）' }, '仓库入库平均时效': { '香化仓': '5.5小时', '酒水仓': '3小时' }, '仓库出库平均时效': { '香化仓': '4小时', '酒水仓': '10小时' }, '二线通关平均时效': { '香化仓': '1.5小时', '酒水仓': '7小时' }, '门店提货至上架平均时效': { default: '4小时' }, '监管仓-周转仓调拨平均时效': { default: '24小时', '美兰店': '-' } };
     const timingNames = Object.keys(targets);
     document.querySelectorAll('table').forEach(table => {
@@ -320,7 +321,7 @@
         const targetCell = row.cells[targetIndex];
         const configuredTarget = targets[currentMetric][currentStore] || targets[currentMetric].default;
         if (targetCell && configuredTarget) targetCell.textContent = configuredTarget;
-        if (!dayMetrics.some(name => currentMetric.includes(name))) row.querySelectorAll('td').forEach(cell => { cell.innerHTML = cell.innerHTML.replace(/(\d+(?:\.\d+)?)D\b/g, '$1小时'); });
+        if (!dayMetrics.some(name => currentMetric.includes(name))) row.querySelectorAll('td').forEach(cell => { cell.innerHTML = cell.innerHTML.replace(/(\d+(?:\.\d+)?)D\b/g, (_, value) => formatHours(value)); });
       });
     });
   };
