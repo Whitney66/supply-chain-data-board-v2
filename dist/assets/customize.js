@@ -66,6 +66,14 @@
     });
     title.parentElement.appendChild(wrap);
   };
+  const hideRequestedMetrics = () => {
+    const hidden = ['3.2.3 直入直出全链路平均时效（监管仓-卖场）', '3.6.1 监管仓/周转仓-预定仓全链路平均时效'];
+    getTables().forEach(table => {
+      Array.from(table.tBodies || []).forEach(body => Array.from(body.rows).forEach(row => {
+        if (hidden.some(name => (row.textContent || '').includes(name))) row.remove();
+      }));
+    });
+  };
   const mergeOverview = () => {
     Array.from(document.querySelectorAll('table')).forEach(table => {
       if (table.dataset.overviewMerged === 'true') return;
@@ -82,7 +90,7 @@
       table.dataset.overviewMerged = 'true';
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
