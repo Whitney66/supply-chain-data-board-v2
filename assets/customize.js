@@ -209,14 +209,17 @@
       const bars = document.createElement('section'); bars.className = 'rounded-lg border border-gray-200 bg-white p-5'; bars.innerHTML = `<div class="mb-4 flex items-center justify-between"><h3 class="font-semibold text-gray-900">${selectedMetric}</h3><span class="text-xs text-gray-500">按门店</span></div>`;
       const max = Math.max(...values.map(item => item.value), metric.target, 1); values.forEach((item, index) => { const row = document.createElement('div'); row.className = 'mb-4 grid grid-cols-[130px_1fr_70px] items-center gap-3'; row.innerHTML = `<span class="truncate text-sm text-gray-700" title="${item.name}">${item.name}</span><div class="h-7 rounded bg-gray-100"><div class="h-7 rounded" style="width:${Math.max(4, item.value / max * 100)}%;background:${colors[index % colors.length]}"></div></div><strong class="text-right text-sm text-gray-900">${item.value.toFixed(2)}%</strong>`; bars.appendChild(row); }); body.appendChild(bars);
       const trend = document.createElement('section'); trend.className = 'rounded-lg border border-gray-200 bg-white p-5'; trend.innerHTML = `<h3 class="mb-4 font-semibold text-gray-900">月度趋势</h3>`;
-      const chart = document.createElement('div'); chart.className = 'grid h-64 grid-cols-12 items-end gap-2 border-b border-l border-gray-200 px-3 pb-2';
-      for (let month = 0; month < 12; month += 1) {
-        const column = document.createElement('div'); column.className = 'group flex h-full flex-col items-center justify-end gap-1';
-        const barsForMonth = document.createElement('div'); barsForMonth.className = 'flex h-full w-full items-end justify-center gap-0.5';
-        values.forEach((item, index) => { const bar = document.createElement('div'); const value = item.value + ((month % 4) - 1.5) * 0.12; bar.className = 'quality-store-series w-2 rounded-t transition-all'; bar.dataset.store = item.name; bar.style.height = `${Math.max(5, value / Math.max(metric.target, 1) * 100)}%`; bar.style.background = colors[index % colors.length]; bar.title = `${item.name} ${month + 1}月 ${value.toFixed(2)}%`; barsForMonth.appendChild(bar); });
-        column.appendChild(barsForMonth); const monthLabel = document.createElement('span'); monthLabel.className = 'text-[10px] text-gray-500'; monthLabel.textContent = `${month + 1}月`; column.appendChild(monthLabel); chart.appendChild(column);
-      }
-      trend.appendChild(chart);
+      const chart = document.createElement('div'); chart.className = 'relative h-64 border-b border-l border-gray-200 px-3 pb-2';
+      const plot = document.createElement('div'); plot.className = 'absolute inset-0';
+      values.forEach((item, index) => {
+        const series = document.createElement('div'); series.className = 'absolute inset-x-0 bottom-6 top-2'; series.dataset.store = item.name;
+        const line = document.createElement('div'); line.className = 'absolute h-0.5 origin-left'; line.style.left = '0'; line.style.right = '0'; line.style.top = `${28 + index * 7}%`; line.style.background = colors[index % colors.length];
+        series.appendChild(line);
+        for (let month = 0; month < 12; month += 1) { const point = document.createElement('span'); const value = item.value + ((month % 4) - 1.5) * 0.12; point.className = 'absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white'; point.style.left = `${month / 11 * 100}%`; point.style.top = `${28 + index * 7 - (value - item.value) * 1.5}%`; point.style.background = colors[index % colors.length]; point.title = `${item.name} ${month + 1}月 ${value.toFixed(2)}%`; series.appendChild(point); }
+        plot.appendChild(series);
+      });
+      const axis = document.createElement('div'); axis.className = 'absolute inset-x-3 bottom-0 flex justify-between text-[10px] text-gray-500'; for (let month = 1; month <= 12; month += 1) { const label = document.createElement('span'); label.textContent = `${month}月`; axis.appendChild(label); }
+      chart.appendChild(plot); chart.appendChild(axis); trend.appendChild(chart);
       const legend = document.createElement('div'); legend.className = 'mt-4 flex flex-wrap gap-3 text-xs'; values.forEach((item, index) => { const button = document.createElement('button'); button.type = 'button'; button.className = 'inline-flex items-center gap-1.5 text-gray-700'; button.innerHTML = `<span class="h-2.5 w-2.5 rounded-full" style="background:${colors[index % colors.length]}"></span>${item.name}`; button.onclick = () => { const on = !visible.has(item.name); if (on) visible.add(item.name); else visible.delete(item.name); button.classList.toggle('opacity-40', !on); chart.querySelectorAll(`[data-store="${item.name}"]`).forEach(bar => { bar.style.display = on ? '' : 'none'; }); bars.querySelectorAll('.mb-4')[index].style.display = on ? '' : 'none'; }; legend.appendChild(button); }); trend.appendChild(legend); body.appendChild(trend); panel.appendChild(body); content.appendChild(panel);
     };
     render();
