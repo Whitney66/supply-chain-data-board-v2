@@ -352,6 +352,29 @@
       });
     });
   };
+  const normalizeExceptionMetricScope = () => {
+    const afterMetrics = ['门店提货至上架平均时效', '监管仓-周转仓调拨平均时效', '周转仓-卖场调拨平均时效'];
+    const timingNames = ['全链路订货平均时效', '一线通关平均时效', '提货至海综保平均时效', '仓库入库平均时效', '全链路入库平均时效', '全链路分货平均时效', '仓库出库平均时效', '二线通关平均时效', '门店提货至上架平均时效', '监管仓-周转仓调拨平均时效', '周转仓-卖场调拨平均时效', '直入直出全链路平均时效', '分拣仓入库平均时效', '邮寄全链路平均时效', '配送全链路平均时效', '预定仓邮寄全链路平均时效', '预定仓配送全链路平均时效'];
+    const title = Array.from(document.querySelectorAll('h2')).find(element => element.textContent.trim() === '异常明细');
+    const panel = title?.closest('.bg-white');
+    if (!panel || panel.dataset.exceptionScopeReady === 'true') return;
+    panel.querySelectorAll('table').forEach(table => {
+      const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
+      const scopeIndex = headers.findIndex(header => header.includes('数据口径'));
+      Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows)).forEach(row => {
+        const text = row.textContent || '';
+        const metricName = timingNames.find(name => text.includes(name));
+        if (!metricName) return;
+        const scope = afterMetrics.includes(metricName) ? '剔除后' : '剔除前';
+        if (scopeIndex >= 0 && row.cells[scopeIndex]) row.cells[scopeIndex].textContent = scope;
+        row.querySelectorAll('td, span, button').forEach(element => {
+          if (element.children.length) return;
+          if (element.textContent.trim() === '剔除前' || element.textContent.trim() === '剔除后') element.textContent = scope;
+        });
+      });
+    });
+    panel.dataset.exceptionScopeReady = 'true';
+  };
   const renderTransferQuality = () => {
     const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
     const root = overview?.closest('.bg-gradient-to-br');
@@ -431,7 +454,7 @@
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); normalizeExceptionMetricScope(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
