@@ -3,15 +3,15 @@
   const colors = ['#f59e0b','#2563eb','#16a34a','#f97316','#9333ea','#0891b2','#dc2626'];
   const metrics = { '香化调拨满足率': [95.2,95.2,94.6,96.1,93.8,95.7,94.9], '库存准确率': [98.8,98.5,98.8,98.2,98.6,98.4,98.7], '效期准确率': [96.2,95.8,96.1,95.5,96.3,96,96.4], '邮寄遗失率': [.07,.08,.06,.11,.07,.09,.05], '邮寄破损率': [.18,.2,.16,.24,.18,.21,.14], '快递有责客诉率': [.22,.25,.22,.31,.19,.27,.18], '物流有责客诉率': [.35,.38,.34,.42,.29,.36,.27] };
   const categories = { '调拨满足率':['香化调拨满足率'], '快递交付':['邮寄遗失率','邮寄破损率'], '客诉情况':['快递有责客诉率','物流有责客诉率'], '准确率盘点情况':['库存准确率','效期准确率'] };
-  let overlay, lastCategory;
+  let overlay, lastCategory, selectedCategory = '调拨满足率';
   const root = () => document.querySelector('h2')?.closest('.bg-gradient-to-br');
   const activeQuality = () => { const r = root(); return r && [...r.querySelectorAll('button')].some(b => b.textContent.includes('质量指标') && b.className.includes('bg-blue-600')); };
-  const category = () => { const r = root(); return Object.keys(categories).find(name => [...(r?.querySelectorAll('button') || [])].some(b => b.textContent.trim() === name && !b.className.includes('bg-white') && !b.className.includes('text-gray-500'))) || '调拨满足率'; };
+  const category = () => selectedCategory;
   const addCategoryTabs = () => {
     const r = root(); const host = r?.querySelector('.mt-6');
     if (!r || !host || r.querySelector('[data-quality-category-tabs]')) return;
     const tabs = document.createElement('div'); tabs.dataset.qualityCategoryTabs = 'true'; tabs.style.cssText = 'display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin:0 0 16px;';
-    Object.keys(categories).forEach(name => { const button = document.createElement('button'); button.type = 'button'; button.textContent = name; button.style.cssText = 'padding:10px 18px;border:1px solid #d1d5db;border-radius:10px;background:#fff;color:#6b7280;font-size:14px;font-weight:600;cursor:pointer;'; button.onclick = () => { tabs.querySelectorAll('button').forEach(item => { item.style.background = '#fff'; item.style.color = '#6b7280'; }); button.style.background = '#fff7ed'; button.style.color = '#c2410c'; lastCategory = null; draw(); }; tabs.appendChild(button); }); tabs.firstElementChild.style.background = '#fff7ed'; tabs.firstElementChild.style.color = '#c2410c'; host.parentNode.insertBefore(tabs, host);
+    Object.keys(categories).forEach(name => { const button = document.createElement('button'); button.type = 'button'; button.textContent = name; button.style.cssText = 'padding:10px 18px;border:1px solid #d1d5db;border-radius:10px;background:#fff;color:#6b7280;font-size:14px;font-weight:600;cursor:pointer;'; button.onclick = () => { selectedCategory = name; tabs.querySelectorAll('button').forEach(item => { item.style.background = '#fff'; item.style.color = '#6b7280'; }); button.style.background = '#fff7ed'; button.style.color = '#c2410c'; lastCategory = null; draw(); }; tabs.appendChild(button); }); tabs.firstElementChild.style.background = '#fff7ed'; tabs.firstElementChild.style.color = '#c2410c'; host.parentNode.insertBefore(tabs, host);
   };
   const lineChart = (values) => {
     const NS = 'http://www.w3.org/2000/svg', W = 1000, H = 270, L = 58, R = 20, T = 16, B = 38;
