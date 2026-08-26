@@ -23,8 +23,8 @@
       }
       matched.slice(1).forEach(row => row.remove());
     };
-    mergeTrendGroup(['提货点提货全链路平均时效', '预定仓配送全链路平均时效'], '3.5.1 配送全链路平均时效（急件）');
-    mergeTrendGroup(['邮寄全链路平均时效', '预定仓邮寄全链路平均时效'], '3.4.1 邮寄全链路平均时效');
+    mergeTrendGroup(['提货点提货全链路平均时效', '预定仓配送全链路平均时效'], '配送全链路平均时效（急件）');
+    mergeTrendGroup(['邮寄全链路平均时效', '预定仓邮寄全链路平均时效'], '邮寄全链路平均时效');
     const headers = Array.from(headerRow.cells);
     const currentIndex = headers.findIndex(cell => cell.textContent.trim() === '当前平均值');
     if (currentIndex < 0) return;
@@ -111,8 +111,8 @@
           cell.appendChild(badge);
           matched.slice(1).forEach(row => row.remove());
         };
-        mergeGroup(['提货点提货全链路平均时效', '预定仓配送全链路平均时效'], '3.5.1 配送全链路平均时效（急件）', 'amber');
-        mergeGroup(['邮寄全链路平均时效', '预定仓邮寄全链路平均时效'], '3.4.1 邮寄全链路平均时效', 'sky');
+        mergeGroup(['提货点提货全链路平均时效', '预定仓配送全链路平均时效'], '配送全链路平均时效（急件）', 'amber');
+        mergeGroup(['邮寄全链路平均时效', '预定仓邮寄全链路平均时效'], '邮寄全链路平均时效', 'sky');
       });
     table.dataset.overviewMerged = 'true';
   };
