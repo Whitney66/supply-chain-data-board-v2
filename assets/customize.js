@@ -291,10 +291,13 @@
   };
   const limitExclusionControls = () => {
     const exclusionMetrics = ['2.1.4', '3.1.1', '3.2.1'];
+    const exclusionNames = ['门店提货至上架平均时效', '监管仓-周转仓调拨平均时效', '周转仓-卖场调拨平均时效'];
     document.querySelectorAll('button').forEach(button => {
       if (!button.textContent.includes('剔除前后')) return;
-      const context = button.closest('tr, section, div')?.textContent || '';
-      if (!exclusionMetrics.some(metricId => context.includes(metricId))) button.hidden = true;
+      const rowContext = button.closest('tr')?.textContent || '';
+      const parentContext = button.parentElement?.parentElement?.textContent || '';
+      const allowed = exclusionMetrics.some(metricId => rowContext.includes(metricId) || parentContext.includes(metricId)) || exclusionNames.some(name => rowContext.includes(name) || parentContext.includes(name));
+      button.hidden = !allowed;
     });
   };
   const renderTransferQuality = () => {
