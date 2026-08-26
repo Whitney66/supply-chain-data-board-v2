@@ -328,7 +328,27 @@
         const cells = Array.from(row.cells);
         if (!cells.some(cell => cell.textContent.includes('卖场-分拣仓'))) return;
         if (stageIndex >= 0 && cells[stageIndex]?.textContent.includes('卖场-分拣仓')) cells[stageIndex].textContent = '3.门店段';
-        if (cells[nodeIndex]?.textContent.includes('卖场-分拣仓')) cells[nodeIndex].textContent = '3.3卖场-分拣仓';
+        if (cells[nodeIndex]?.textContent.includes('卖场-分拣仓')) cells[nodeIndex].textContent = '3.卖场-分拣仓';
+      });
+    });
+  };
+  const normalizeStoreStageMetrics = () => {
+    const corrections = [
+      { match: '卖场-分拣仓入库平均时效', stage: '3.门店段', node: '3.卖场-分拣仓', metric: '3.1卖场-分拣仓入库平均时效' }
+    ];
+    document.querySelectorAll('table').forEach(table => {
+      const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
+      const nodeIndex = headers.indexOf('业务节点');
+      const metricIndex = headers.indexOf('具体指标');
+      if (nodeIndex < 0 || metricIndex < 0) return;
+      const stageIndex = headers.indexOf('业务环节');
+      Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows)).forEach(row => {
+        const cells = Array.from(row.cells);
+        const correction = corrections.find(item => cells.some(cell => cell.textContent.includes(item.match)));
+        if (!correction) return;
+        if (stageIndex >= 0 && cells[stageIndex]) cells[stageIndex].textContent = correction.stage;
+        if (cells[nodeIndex]) cells[nodeIndex].textContent = correction.node;
+        if (cells[metricIndex]) cells[metricIndex].textContent = correction.metric;
       });
     });
   };
@@ -411,7 +431,7 @@
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); normalizeStoreStageNode(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
