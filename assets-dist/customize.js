@@ -318,13 +318,57 @@
     };
     render();
   };
+  const renderQualityCategoriesV2 = () => {
+    const overview = Array.from(document.querySelectorAll('h2')).find(el => el.textContent.trim() === '指标总览');
+    const root = overview?.closest('.bg-gradient-to-br');
+    const qualityTab = root && Array.from(root.querySelectorAll('button')).find(button => button.textContent.includes('质量指标') && button.className.includes('bg-blue-600'));
+    const content = root?.querySelector('.mt-6');
+    if (!root || !qualityTab || !content) return;
+    const categories = {
+      '调拨满足率': ['香化调拨满足率'],
+      '快递交付': ['邮寄遗失率', '邮寄破损率'],
+      '客诉情况': ['快递有责客诉率', '物流有责客诉率'],
+      '准确率盘点情况': ['库存准确率', '效期准确率']
+    };
+    const activeCategory = Object.keys(categories).find(name => Array.from(root.querySelectorAll('button')).some(button => button.textContent.includes(name) && (button.className.includes('scale-105') || button.className.includes('shadow-md')))) || '调拨满足率';
+    if (content.dataset.qualityV2Category === activeCategory) return;
+    content.dataset.qualityV2Category = activeCategory;
+    content.innerHTML = '';
+    const stores = ['三亚海棠湾店', '新海港店', '三亚凤凰机场店', '海口美兰机场店', '海口日月店', '博鳌店'];
+    const colors = ['#2563eb', '#16a34a', '#f97316', '#9333ea', '#0891b2', '#dc2626'];
+    const metricConfig = {
+      '香化调拨满足率': { target: 97, min: 90, max: 100, base: [95.2, 94.6, 96.1, 93.8, 95.7, 94.9] },
+      '邮寄遗失率': { target: .1, min: 0, max: .5, base: [.08, .06, .11, .07, .09, .05] },
+      '邮寄破损率': { target: .1, min: 0, max: .5, base: [.2, .16, .24, .18, .21, .14] },
+      '快递有责客诉率': { target: .1, min: 0, max: .6, base: [.25, .22, .31, .19, .27, .18] },
+      '物流有责客诉率': { target: .1, min: 0, max: .6, base: [.38, .34, .42, .29, .36, .27] },
+      '库存准确率': { target: 99, min: 95, max: 100, base: [98.5, 98.8, 98.2, 98.6, 98.4, 98.7] },
+      '效期准确率': { target: 96, min: 90, max: 100, base: [95.8, 96.1, 95.5, 96.3, 96, 96.4] }
+    };
+    const createSvg = (metric, series) => {
+      const NS = 'http://www.w3.org/2000/svg', width = 1000, height = 260, left = 58, right = 20, top = 18, bottom = 38;
+      const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', `0 0 ${width} ${height}`); svg.style.cssText = 'display:block;width:100%;height:250px;overflow:visible;';
+      const x = month => left + month / 11 * (width - left - right); const y = value => top + (metric.max - value) / (metric.max - metric.min) * (height - top - bottom);
+      for (let step = 0; step <= 4; step += 1) { const value = metric.min + (metric.max - metric.min) * step / 4; const yy = y(value); const grid = document.createElementNS(NS, 'line'); grid.setAttribute('x1', left); grid.setAttribute('x2', width - right); grid.setAttribute('y1', yy); grid.setAttribute('y2', yy); grid.setAttribute('stroke', '#e5e7eb'); grid.setAttribute('stroke-dasharray', '3 4'); svg.appendChild(grid); const label = document.createElementNS(NS, 'text'); label.setAttribute('x', left - 8); label.setAttribute('y', yy + 4); label.setAttribute('text-anchor', 'end'); label.setAttribute('font-size', '11'); label.setAttribute('fill', '#6b7280'); label.textContent = `${Number(value.toFixed(2))}%`; svg.appendChild(label); }
+      for (let month = 0; month < 12; month += 1) { const xx = x(month); const label = document.createElementNS(NS, 'text'); label.setAttribute('x', xx); label.setAttribute('y', height - 12); label.setAttribute('text-anchor', 'middle'); label.setAttribute('font-size', '11'); label.setAttribute('fill', '#6b7280'); label.textContent = `${month + 1}月`; svg.appendChild(label); }
+      const target = document.createElementNS(NS, 'line'); target.setAttribute('x1', left); target.setAttribute('x2', width - right); target.setAttribute('y1', y(metric.target)); target.setAttribute('y2', y(metric.target)); target.setAttribute('stroke', '#ef4444'); target.setAttribute('stroke-dasharray', '6 4'); target.setAttribute('stroke-width', '1.5'); svg.appendChild(target);
+      series.forEach(item => { const group = document.createElementNS(NS, 'g'); group.dataset.store = item.store; const polyline = document.createElementNS(NS, 'polyline'); polyline.setAttribute('points', item.months.map((value, month) => `${x(month)},${y(value)}`).join(' ')); polyline.setAttribute('fill', 'none'); polyline.setAttribute('stroke', colors[item.index]); polyline.setAttribute('stroke-width', '2'); group.appendChild(polyline); item.months.forEach((value, month) => { const dot = document.createElementNS(NS, 'circle'); dot.setAttribute('cx', x(month)); dot.setAttribute('cy', y(value)); dot.setAttribute('r', '3.5'); dot.setAttribute('fill', '#fff'); dot.setAttribute('stroke', colors[item.index]); dot.setAttribute('stroke-width', '2'); const title = document.createElementNS(NS, 'title'); title.textContent = `${item.store} ${month + 1}月 ${value.toFixed(2)}%`; dot.appendChild(title); group.appendChild(dot); }); svg.appendChild(group); }); return svg;
+    };
+    categories[activeCategory].forEach(metricName => {
+      const metric = metricConfig[metricName]; const series = stores.map((store, index) => ({ store, index, months: Array.from({ length: 12 }, (_, month) => { const delta = ((month % 4) - 1.5) * (metric.max - metric.min) * .018 + (index % 2 ? -.01 : .01) * (metric.max - metric.min); return Number(Math.max(metric.min, Math.min(metric.max, metric.base[index] + delta)).toFixed(2)); }) }));
+      const row = document.createElement('section'); row.style.cssText = 'display:grid;grid-template-columns:minmax(300px,32%) minmax(0,68%);gap:16px;width:100%;margin-bottom:16px;align-items:stretch;';
+      const barPanel = document.createElement('div'); barPanel.style.cssText = 'height:310px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:14px;'; barPanel.innerHTML = `<h3 style="font-size:14px;font-weight:600;margin:0 0 12px;color:#111827">${metricName} · 门店平均值</h3>`;
+      series.forEach(item => { const average = item.months.reduce((sum, value) => sum + value, 0) / item.months.length; const ratio = (average - metric.min) / (metric.max - metric.min) * 100; const bar = document.createElement('div'); bar.dataset.store = item.store; bar.style.cssText = 'display:grid;grid-template-columns:110px minmax(0,1fr) 52px;align-items:center;gap:8px;margin-bottom:10px;'; bar.innerHTML = `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#4b5563" title="${item.store}">${item.store}</span><div style="height:18px;border-radius:3px;background:#f3f4f6"><div style="height:18px;width:${Math.max(3, ratio)}%;border-radius:3px;background:${colors[item.index]}"></div></div><strong style="text-align:right;font-size:12px;color:#111827">${average.toFixed(2)}%</strong>`; barPanel.appendChild(bar); }); row.appendChild(barPanel);
+      const linePanel = document.createElement('div'); linePanel.style.cssText = 'height:310px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:14px;'; linePanel.innerHTML = `<h3 style="font-size:14px;font-weight:600;margin:0 0 4px;color:#111827">${metricName} · 月度趋势</h3>`; const svg = createSvg(metric, series); linePanel.appendChild(svg); const legend = document.createElement('div'); legend.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:-4px;font-size:11px;'; series.forEach(item => { const button = document.createElement('button'); button.type = 'button'; button.style.cssText = 'display:inline-flex;align-items:center;gap:5px;color:#4b5563;background:none;border:0;cursor:pointer;'; button.innerHTML = `<span style="width:9px;height:9px;border-radius:50%;background:${colors[item.index]}"></span>${item.store}`; button.onclick = () => { const group = svg.querySelector(`[data-store="${item.store}"]`); const bar = barPanel.querySelector(`[data-store="${item.store}"]`); const show = group.style.display === 'none'; group.style.display = show ? '' : 'none'; bar.style.display = show ? 'grid' : 'none'; button.style.opacity = show ? '1' : '.35'; }; legend.appendChild(button); }); linePanel.appendChild(legend); row.appendChild(linePanel); content.appendChild(row);
+    });
+  };
   const removeNonTop300 = () => {
     document.querySelectorAll('div, span, h2, h3, h4').forEach(element => {
       if (element.children.length) return;
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); renderTransferQuality(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeMetricLabels(); renderQualityCategoriesV2(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
