@@ -289,18 +289,8 @@
     }
     panel.dataset.qualityChartUpdated = 'true';
   };
-  const normalizeTimingMetrics = () => {
-    const dayMetrics = ['1.1.1', '1.1.3'];
+  const limitExclusionControls = () => {
     const exclusionMetrics = ['2.1.4', '3.1.1', '3.2.1'];
-    const timingMetricNames = { '全链路订货平均时效（一盘货）': '1.1.1', '一线通关平均时效': '1.1.2', '提货至海综保平均时效': '1.1.3', '仓库入库平均时效': '1.1.4', '全链路入库平均时效（直发）': '1.2.1', '全链路分货平均时效': '2.1.1', '仓库出库平均时效': '2.1.2', '二线通关平均时效': '2.1.3', '门店提货至上架平均时效': '2.1.4', '监管仓-周转仓调拨平均时效': '3.1.1', '周转仓-卖场调拨平均时效': '3.2.1', '直入直出全链路平均时效': '3.2.3', '全链路分拣仓入库平均时效': '3.3.1', '邮寄全链路平均时效': '3.4.1', '配送全链路平均时效': '3.5.1', '监管仓/周转仓-预定仓全链路平均时效': '3.6.1', '预定仓邮寄全链路平均时效': '3.7.1', '预定仓配送全链路平均时效': '3.8.1' };
-    document.querySelectorAll('tr').forEach(row => {
-      const text = row.textContent || '';
-      const metricId = text.match(/(?:1\.1\.1|1\.1\.2|1\.1\.3|1\.1\.4|1\.2\.1|2\.1\.1|2\.1\.2|2\.1\.3|2\.1\.4|3\.1\.1|3\.2\.1|3\.2\.3|3\.3\.1|3\.4\.1|3\.5\.1|3\.6\.1|3\.7\.1|3\.8\.1)/)?.[0] || Object.entries(timingMetricNames).find(([name]) => text.includes(name))?.[1];
-      if (!metricId || dayMetrics.includes(metricId)) return;
-      row.querySelectorAll('td').forEach(cell => {
-        cell.innerHTML = cell.innerHTML.replace(/(\d+(?:\.\d+)?)D\b/g, (_, value) => `${(Number(value) * 24).toFixed(2).replace(/\.00$/, '')}H`);
-      });
-    });
     document.querySelectorAll('button').forEach(button => {
       if (!button.textContent.includes('剔除前后')) return;
       const context = button.closest('tr, section, div')?.textContent || '';
@@ -386,7 +376,7 @@
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); normalizeTimingMetrics(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
