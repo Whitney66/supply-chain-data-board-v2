@@ -55,7 +55,29 @@
       if (text.includes('邮寄全链路平均时效')) label.childNodes[0].textContent = '3.4.1 邮寄全链路平均时效';
     });
   };
-  const run = () => { if (isTrend()) { addControls(); updateTable(); } };
+  const updateOverviewTable = () => {
+    const title = [...document.querySelectorAll('h3')].find(el => el.textContent.trim() === '各链路时效指标');
+    const table = title?.closest('.bg-white')?.querySelector('table');
+    if (!table || table.dataset.mergedMetrics) return;
+    table.dataset.mergedMetrics = 'true';
+    [...table.tBodies].forEach(tbody => [...tbody.rows].forEach(row => {
+      const cells = [...row.cells];
+      const metricCell = cells[1];
+      const metric = metricCell?.textContent || '';
+      if (!metricCell) return;
+      if (metric.includes('提货点提货全链路平均时效') || metric.includes('预定仓配送全链路平均时效')) {
+        metricCell.childNodes[0].textContent = '3.5.1 配送全链路平均时效（急件）';
+      }
+      if (metric.includes('预定仓邮寄全链路平均时效')) row.remove();
+      if (metric.includes('邮寄全链路平均时效')) {
+        metricCell.childNodes[0].textContent = '3.4.1 邮寄全链路平均时效';
+      }
+    }));
+  };
+  const run = () => {
+    if (isTrend()) { addControls(); updateTable(); }
+    updateOverviewTable();
+  };
   new MutationObserver(run).observe(document.body, {childList:true, subtree:true});
   setTimeout(run, 500);
 })();
