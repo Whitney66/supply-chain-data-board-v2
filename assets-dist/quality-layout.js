@@ -1,12 +1,12 @@
 (() => {
-  const stores = ['三亚海棠湾店','新海港店','三亚凤凰机场店','海口美兰机场店','海口日月店','博鳌店'];
-  const colors = ['#2563eb','#16a34a','#f97316','#9333ea','#0891b2','#dc2626'];
-  const metrics = { '香化调拨满足率': [95.2,94.6,96.1,93.8,95.7,94.9], '库存准确率': [98.5,98.8,98.2,98.6,98.4,98.7], '效期准确率': [95.8,96.1,95.5,96.3,96,96.4], '邮寄遗失率': [.08,.06,.11,.07,.09,.05], '邮寄破损率': [.2,.16,.24,.18,.21,.14], '快递有责客诉率': [.25,.22,.31,.19,.27,.18], '物流有责客诉率': [.38,.34,.42,.29,.36,.27] };
+  const stores = ['一盘货','三亚海棠湾店','新海港店','三亚凤凰机场店','海口美兰机场店','海口日月店','博鳌店'];
+  const colors = ['#f59e0b','#2563eb','#16a34a','#f97316','#9333ea','#0891b2','#dc2626'];
+  const metrics = { '香化调拨满足率': [95.2,95.2,94.6,96.1,93.8,95.7,94.9], '库存准确率': [98.5,98.8,98.2,98.6,98.4,98.7], '效期准确率': [95.8,96.1,95.5,96.3,96,96.4], '邮寄遗失率': [.08,.06,.11,.07,.09,.05], '邮寄破损率': [.2,.16,.24,.18,.21,.14], '快递有责客诉率': [.25,.22,.31,.19,.27,.18], '物流有责客诉率': [.38,.34,.42,.29,.36,.27] };
   const categories = { '调拨满足率':['香化调拨满足率'], '快递交付':['邮寄遗失率','邮寄破损率'], '客诉情况':['快递有责客诉率','物流有责客诉率'], '准确率盘点情况':['库存准确率','效期准确率'] };
   let overlay, lastCategory;
   const root = () => document.querySelector('h2')?.closest('.bg-gradient-to-br');
   const activeQuality = () => { const r = root(); return r && [...r.querySelectorAll('button')].some(b => b.textContent.includes('质量指标') && b.className.includes('bg-blue-600')); };
-  const category = () => { const r = root(); return Object.keys(categories).find(name => [...(r?.querySelectorAll('button') || [])].some(b => b.textContent.includes(name) && (b.className.includes('scale-105') || b.className.includes('shadow-md')))) || '调拨满足率'; };
+  const category = () => { const r = root(); return Object.keys(categories).find(name => [...(r?.querySelectorAll('button') || [])].some(b => b.textContent.trim() === name && (b.className.includes('bg-orange-50') || b.className.includes('bg-green-50') || b.className.includes('bg-purple-50') || b.className.includes('bg-blue-50') || b.className.includes('scale-105') || b.className.includes('shadow-md')))) || '调拨满足率'; };
   const lineChart = (values) => {
     const NS = 'http://www.w3.org/2000/svg', W = 1000, H = 270, L = 58, R = 20, T = 16, B = 38;
     const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.style.cssText = 'display:block;width:100%;height:250px;overflow:visible;';
