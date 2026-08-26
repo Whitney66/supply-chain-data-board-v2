@@ -352,6 +352,18 @@
       });
     });
   };
+  const fixStoreStageRowSpan = () => {
+    document.querySelectorAll('table').forEach(table => {
+      const rows = Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows));
+      const targetRow = rows.find(row => row.textContent.includes('3.卖场-分拣仓') && row.textContent.includes('3.1卖场-分拣仓入库平均时效'));
+      if (!targetRow) return;
+      const precedingRow = rows.slice(0, rows.indexOf(targetRow)).reverse().find(row => row.textContent.includes('2.周转仓-卖场'));
+      const stageCell = precedingRow && Array.from(precedingRow.cells).find(cell => cell.textContent.includes('2.周转仓-卖场'));
+      if (stageCell) stageCell.rowSpan = 1;
+      const targetStageCell = Array.from(targetRow.cells).find(cell => cell.textContent.includes('3.卖场-分拣仓'));
+      if (targetStageCell && targetStageCell.cellIndex > 0 && targetStageCell.previousElementSibling?.textContent.trim() === '') targetRow.insertBefore(targetStageCell, targetRow.firstElementChild);
+    });
+  };
   const normalizeExceptionMetricScope = () => {
     const afterMetrics = ['门店提货至上架平均时效', '监管仓-周转仓调拨平均时效', '周转仓-卖场调拨平均时效'];
     const timingNames = ['全链路订货平均时效', '一线通关平均时效', '提货至海综保平均时效', '仓库入库平均时效', '全链路入库平均时效', '全链路分货平均时效', '仓库出库平均时效', '二线通关平均时效', '门店提货至上架平均时效', '监管仓-周转仓调拨平均时效', '周转仓-卖场调拨平均时效', '直入直出全链路平均时效', '分拣仓入库平均时效', '邮寄全链路平均时效', '配送全链路平均时效', '预定仓邮寄全链路平均时效', '预定仓配送全链路平均时效'];
@@ -456,7 +468,7 @@
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); normalizeExceptionMetricScope(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
