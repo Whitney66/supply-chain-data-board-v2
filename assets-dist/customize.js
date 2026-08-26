@@ -358,7 +358,9 @@
     const title = Array.from(document.querySelectorAll('h2')).find(element => element.textContent.trim() === '异常明细');
     const panel = title?.closest('.bg-white');
     if (!panel || panel.dataset.exceptionScopeReady === 'true') return;
-    panel.querySelectorAll('table').forEach(table => {
+    const tables = panel.querySelectorAll('table');
+    if (!tables.length) return;
+    tables.forEach(table => {
       const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
       const scopeIndex = headers.findIndex(header => header.includes('数据口径'));
       Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows)).forEach(row => {
