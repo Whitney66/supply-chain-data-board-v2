@@ -425,7 +425,9 @@
               cell.style.color = '#c45a00';
             }
             if (valueIndex >= 9) cell.style.backgroundColor = '#eef6ff';
-            cell.textContent = value;
+            const isAverage = rowIndex === 0 && valueIndex > 0;
+            const hours = isAverage && /D$/i.test(value) ? Number.parseFloat(value) * 24 : null;
+            cell.textContent = hours === null ? value : `${Number(hours.toFixed(4))}H`;
           });
         });
       });
