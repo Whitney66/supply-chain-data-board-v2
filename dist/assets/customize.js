@@ -366,18 +366,70 @@
     document.querySelectorAll('table').forEach(table => { const rows = Array.from(table.rows); const grid = makeGrid(table); const headerRow = rows.findIndex(row => Array.from(row.cells).some(cell => cell.tagName === 'TH' && cell.textContent.includes('目标值'))); if (headerRow < 0) return; const headers = grid[headerRow].map(cell => cell?.textContent.trim() || ''); const targetIndex = headers.findIndex(header => header.includes('目标值')); const statIndexes = headers.map((header, i) => ['当前平均值', '最大值', '上期值', '同期值'].includes(header) ? i : -1).filter(i => i >= 0); let metric = '', store = ''; rows.slice(headerRow + 1).forEach((row, offset) => { const r = headerRow + 1 + offset; const rowText = row.textContent || ''; metric = timingNames.find(name => rowText.includes(name)) || metric; const alias = aliasNames.find(name => rowText.includes(name)); store = alias ? aliases[alias] : store; if (!metric) return; const unit = dayMetrics.includes(metric) ? '天' : 'H'; const target = Object.prototype.hasOwnProperty.call(targets[metric], store) ? targets[metric][store] : targets[metric].default || '-'; const targetCell = grid[r]?.[targetIndex]; if (targetCell && targetCell.parentElement === row) targetCell.textContent = target; statIndexes.forEach(index => { const cell = grid[r]?.[index]; if (cell && cell.parentElement === row) format(cell, unit); }); }); });
   };
   const flattenWarehouseOutboundDetail = () => {
+    const data = {
+      '酒水': [
+        ['平均时效', '0.5D', '0.51D', '0.51D', '0.5D', '0.51D', '0.52D', '0.5D', '0.51D', '0.52D', '0.5D', '0.51D'],
+        ['大于目标值的件数', '0.5D', '1774.09', '1774.09', '1441.96', '1661.92', '1576.38', '1970.24', '1746.52', '1551.94', '2016.3', '1808.56'],
+        ['总件数', '-', '13575.17', '13575.17', '11092', '12784', '12126', '14288', '13442', '11938', '15510', '13912'],
+        ['达标率', '-', '87.72%', '87.72%', '87.78%', '87.78%', '87.78%', '87.03%', '87.78%', '87.78%', '87.78%', '87.78%']
+      ],
+      '香化': [
+        ['平均时效', '0.875D', '0.89D', '0.89D', '0.88D', '0.89D', '0.9D', '0.88D', '0.89D', '0.9D', '0.88D', '0.89D'],
+        ['大于目标值的件数', '0.875D', '3031.58', '3031.58', '2835.04', '2627.3', '3103.88', '2786.16', '3287.18', '3018.34', '2663.96', '3372.72'],
+        ['总件数', '-', '23319.83', '23319.83', '21808', '20210', '23876', '21432', '25286', '23218', '20492', '25944'],
+        ['达标率', '-', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%']
+      ]
+    };
     document.querySelectorAll('h4').forEach(title => {
       if (title.textContent.trim() !== '仓库出库平均时效') return;
       const section = title.closest('.mb-6') || title.parentElement?.parentElement;
-      const table = section?.querySelector('table');
-      if (!section || !table || table.dataset.outboundFlat === 'true') return;
-      let tableHost = table;
-      while (tableHost.parentElement && tableHost.parentElement !== section) tableHost = tableHost.parentElement;
-      Array.from(section.children).forEach(child => {
-        if (child !== tableHost) child.remove();
-      });
-      table.querySelectorAll('button, [role="button"]').forEach(control => control.remove());
+      const oldTable = section?.querySelector('table');
+      if (!section || !oldTable || oldTable.dataset.outboundFlat === 'true') return;
+      const table = document.createElement('table');
       table.dataset.outboundFlat = 'true';
+      table.className = 'w-full text-xs border-collapse';
+      const headers = ['门店', '品类', '指标', '目标值', '日度均值', '月度均值', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月'];
+      const thead = table.createTHead();
+      const headerRow = thead.insertRow();
+      headers.forEach((label, index) => {
+        const cell = document.createElement('th');
+        cell.className = 'px-3 py-2 border border-gray-200 text-center font-semibold text-gray-900 whitespace-nowrap';
+        cell.style.backgroundColor = index === 3 ? '#fffbea' : '#fff4f4';
+        cell.textContent = label;
+        headerRow.appendChild(cell);
+      });
+      const tbody = table.createTBody();
+      let firstRow = true;
+      Object.entries(data).forEach(([category, rows], categoryIndex) => {
+        rows.forEach((values, rowIndex) => {
+          const row = tbody.insertRow();
+          if (firstRow) {
+            const store = row.insertCell();
+            store.rowSpan = 8;
+            store.className = 'px-3 py-2 border border-gray-200 text-left align-middle whitespace-nowrap';
+            store.textContent = '海南国际物流中心';
+            firstRow = false;
+          }
+          if (rowIndex === 0) {
+            const categoryCell = row.insertCell();
+            categoryCell.rowSpan = 4;
+            categoryCell.className = 'px-3 py-2 border border-gray-200 text-center align-middle';
+            categoryCell.style.backgroundColor = categoryIndex === 0 ? '#eef6ff' : '#effcf4';
+            categoryCell.textContent = category;
+          }
+          values.forEach((value, valueIndex) => {
+            const cell = row.insertCell();
+            cell.className = `px-3 py-2 border border-gray-200 ${valueIndex === 0 ? 'text-left' : 'text-center'} whitespace-nowrap`;
+            if (valueIndex === 1) {
+              cell.style.backgroundColor = '#fffbea';
+              cell.style.color = '#c45a00';
+            }
+            if (valueIndex >= 9) cell.style.backgroundColor = '#eef6ff';
+            cell.textContent = value;
+          });
+        });
+      });
+      oldTable.replaceWith(table);
     });
   };
   const normalizeStoreStageNode = () => {
