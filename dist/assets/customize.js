@@ -26,13 +26,28 @@
     mergeTrendGroup(['提货点提货全链路平均时效', '预定仓配送全链路平均时效'], '配送全链路平均时效（急件）');
     mergeTrendGroup(['邮寄全链路平均时效', '预定仓邮寄全链路平均时效'], '邮寄全链路平均时效');
     const headers = Array.from(headerRow.cells);
-    const currentIndex = headers.findIndex(cell => cell.textContent.trim() === '当前平均值');
+    const metricIndex = headers.findIndex(cell => cell.textContent.trim() === '指标名称');
+    if (metricIndex < 0) return;
+    const storeHeader = document.createElement('th');
+    storeHeader.className = headers[metricIndex].className;
+    storeHeader.textContent = '门店';
+    headers[metricIndex].after(storeHeader);
+    const stores = ['三亚海棠湾店', '新海港店', '三亚凤凰机场店', '海口美兰机场店', '海口日月店', '博鳌店'];
+    Array.from(body.rows).forEach((row, index) => {
+      const cell = document.createElement('td');
+      cell.className = 'px-3 py-2 text-center text-gray-600 whitespace-nowrap';
+      cell.textContent = stores[index % stores.length];
+      if (row.cells.length === headers.length) row.cells[metricIndex].after(cell);
+      else row.cells[metricIndex]?.before(cell);
+    });
+    const headersWithStore = Array.from(headerRow.cells);
+    const currentIndex = headersWithStore.findIndex(cell => cell.textContent.trim() === '当前平均值');
     if (currentIndex < 0) return;
     const header = document.createElement('th');
-    header.className = headers[currentIndex].className;
+    header.className = headersWithStore[currentIndex].className;
     header.textContent = '票数达标率';
     header.dataset.trendColumn = 'ticket';
-    headers[currentIndex].after(header);
+    headersWithStore[currentIndex].after(header);
     const updatedHeaders = Array.from(headerRow.cells);
     const pieceIndex = updatedHeaders.findIndex(cell => cell.textContent.trim() === '件数达标率');
     if (pieceIndex >= 0) {
@@ -49,13 +64,38 @@
       const insertAt = Math.min(currentIndex + 1, cells.length - 1);
       cells[insertAt].before(cell);
       const updatedCells = Array.from(row.cells);
-      const pieceCell = updatedCells[pieceIndex];
+      const rowOffset = updatedHeaders.length - updatedCells.length;
+      const pieceCell = updatedCells[pieceIndex - rowOffset];
       if (pieceCell) {
         pieceCell.dataset.trendColumn = 'piece';
         pieceCell.classList.add('border-r-2', 'border-gray-300');
-        const nextCell = updatedCells[pieceIndex + 1];
+        const nextCell = updatedCells[pieceIndex - rowOffset + 1];
         if (nextCell) nextCell.classList.add('border-l-2', 'border-gray-300');
       }
+    });
+    const columnTones = {
+      '品类': '#fff8e6',
+      '目标值': '#fff8e6',
+      '当前平均值': '#fff8e6',
+      '件数达标率': '#fff8e6',
+      '上月值': '#f2fae8',
+      '环比': '#f2fae8',
+      '同期值': '#eaf8ff',
+      '同比': '#eaf8ff'
+    };
+    const finalHeaders = Array.from(headerRow.cells);
+    finalHeaders.forEach(cell => {
+      const tone = columnTones[cell.textContent.trim()];
+      if (tone) cell.style.backgroundColor = tone;
+    });
+    Array.from(body.rows).forEach(row => {
+      const cells = Array.from(row.cells);
+      const rowOffset = finalHeaders.length - cells.length;
+      finalHeaders.forEach((headerCell, logicalIndex) => {
+        const tone = columnTones[headerCell.textContent.trim()];
+        const cell = cells[logicalIndex - rowOffset];
+        if (tone && cell) cell.style.backgroundColor = tone;
+      });
     });
     table.dataset.ticketRateReady = 'true';
   };
@@ -302,29 +342,15 @@
   };
   const normalizeTimingTargetUnits = () => {
     const dayMetrics = ['全链路订货平均时效（一盘货）', '提货至海综保平均时效'];
-    const formatHours = value => `${(Number(value) * 24).toFixed(2).replace(/\.00$/, '')}H`;
-    const targets = { '全链路订货平均时效（一盘货）': { '香化仓': '11（天）', '酒水仓': '7（天）' }, '一线通关平均时效': { default: '72小时' }, '提货至海综保平均时效': { default: '2.5（天）' }, '仓库入库平均时效': { '香化仓': '5.5小时', '酒水仓': '3小时' }, '仓库出库平均时效': { '香化仓': '4小时', '酒水仓': '10小时' }, '二线通关平均时效': { '香化仓': '1.5小时', '酒水仓': '7小时' }, '门店提货至上架平均时效': { default: '4小时' }, '监管仓-周转仓调拨平均时效': { default: '24小时', '美兰店': '-' } };
-    const timingNames = Object.keys(targets);
-    document.querySelectorAll('table').forEach(table => {
-      const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
-      const targetIndex = headers.findIndex(header => header === '目标值' || header.includes('目标值'));
-      if (targetIndex < 0) return;
-      let currentMetric = '';
-      let currentStore = '';
-      Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows)).forEach(row => {
-        const text = row.textContent || '';
-        const matchedMetric = timingNames.find(name => text.includes(name));
-        if (matchedMetric) currentMetric = matchedMetric;
-        const store = ['香化仓', '酒水仓', '一盘货', '三亚店', '新海港店', '日月店', '美兰店', '博鳌店', '凤凰机场店', '全岛整体', '整体'].find(name => text.includes(name));
-        if (store) currentStore = store;
-        if (!currentMetric) return;
-        const targetCell = row.cells[targetIndex];
-        const configuredTarget = targets[currentMetric][currentStore] || targets[currentMetric].default;
-        if (targetCell && configuredTarget) targetCell.textContent = configuredTarget;
-        if (!dayMetrics.some(name => currentMetric.includes(name))) row.querySelectorAll('td').forEach(cell => { cell.innerHTML = cell.innerHTML.replace(/(\d+(?:\.\d+)?)D\b/g, (_, value) => formatHours(value)); });
-      });
-    });
+    const targets = { '全链路订货平均时效（一盘货）': { '香化仓': '11天', '酒水仓': '7天' }, '一线通关平均时效': { default: '72小时' }, '提货至海综保平均时效': { default: '2.5天' }, '仓库入库平均时效': { '香化仓': '5.5小时', '酒水仓': '3小时' }, '全链路入库平均时效（直发）': {}, '全链路分货平均时效': {}, '仓库出库平均时效': { '香化仓': '4小时', '酒水仓': '10小时' }, '二线通关平均时效': { '香化仓': '1.5小时', '酒水仓': '7小时' }, '门店提货至上架平均时效': { default: '4小时' }, '监管仓-周转仓调拨平均时效': { default: '24小时', '美兰店': '-' }, '周转仓-卖场调拨平均时效': {}, '全链路分拣仓入库平均时效': {}, '邮寄全链路平均时效': {}, '配送全链路平均时效': {}, '监管仓/周转仓-预定仓全链路平均时效': {}, '预定仓邮寄全链路平均时效': {}, '预定仓配送全链路平均时效': {} };
+    const timingNames = Object.keys(targets).sort((a, b) => b.length - a.length);
+    const aliases = { '香化仓': '香化仓', '香化': '香化仓', '酒水仓': '酒水仓', '酒水': '酒水仓', '一盘货': '一盘货', '三亚店': '三亚店', '新海港店': '新海港店', '日月店': '日月店', '美兰店': '美兰店', '博鳌店': '博鳌店', '凤凰机场店': '凤凰机场店', '全岛整体': '全岛整体', '整体': '整体' };
+    const aliasNames = ['香化仓', '酒水仓', '香化', '酒水', '三亚店', '新海港店', '日月店', '美兰店', '博鳌店', '凤凰机场店', '全岛整体', '整体', '一盘货'];
+    const format = (cell, unit) => { const m = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|小时|D|H)?$/i); if (!m) return; let value = Number(m[1]); const source = /天|D/i.test(m[2] || '') ? '天' : /小时|H/i.test(m[2] || '') ? '小时' : unit; if (source !== unit) value = source === '天' ? value * 24 : value / 24; cell.textContent = `${Number(value.toFixed(4))}${unit}`; };
+    const makeGrid = table => { const grid = []; Array.from(table.rows).forEach((row, r) => { grid[r] ||= []; let c = 0; Array.from(row.cells).forEach(cell => { while (grid[r][c]) c += 1; for (let rr = r; rr < r + Math.max(1, cell.rowSpan); rr += 1) { grid[rr] ||= []; for (let cc = c; cc < c + Math.max(1, cell.colSpan); cc += 1) grid[rr][cc] = cell; } c += Math.max(1, cell.colSpan); }); }); return grid; };
+    document.querySelectorAll('table').forEach(table => { const rows = Array.from(table.rows); const grid = makeGrid(table); const headerRow = rows.findIndex(row => Array.from(row.cells).some(cell => cell.tagName === 'TH' && cell.textContent.includes('目标值'))); if (headerRow < 0) return; const headers = grid[headerRow].map(cell => cell?.textContent.trim() || ''); const targetIndex = headers.findIndex(header => header.includes('目标值')); const statIndexes = headers.map((header, i) => ['当前平均值', '最大值', '上期值', '同期值'].includes(header) ? i : -1).filter(i => i >= 0); let metric = '', store = ''; rows.slice(headerRow + 1).forEach((row, offset) => { const r = headerRow + 1 + offset; const rowText = row.textContent || ''; metric = timingNames.find(name => rowText.includes(name)) || metric; const alias = aliasNames.find(name => rowText.includes(name)); store = alias ? aliases[alias] : store; if (!metric) return; const unit = dayMetrics.includes(metric) ? '天' : '小时'; const target = Object.prototype.hasOwnProperty.call(targets[metric], store) ? targets[metric][store] : targets[metric].default || '-'; const targetCell = grid[r]?.[targetIndex]; if (targetCell && targetCell.parentElement === row) targetCell.textContent = target; statIndexes.forEach(index => { const cell = grid[r]?.[index]; if (cell && cell.parentElement === row) format(cell, unit); }); }); });
   };
+  const flattenWarehouseOutboundDetail = () => { const toHours = cell => { const match = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|小时|D|H)?$/i); if (!match) return; const value = /天|D/i.test(match[2] || '天') ? Number(match[1]) * 24 : Number(match[1]); cell.textContent = `${Number(value.toFixed(4))}小时`; }; document.querySelectorAll('h4').forEach(title => { if (title.textContent.trim() !== '仓库出库平均时效') return; const section = title.closest('.mb-6') || title.parentElement?.parentElement; const table = section?.querySelector('table'); if (!table) return; const indicator = Array.from(table.querySelectorAll('thead th')).find(cell => cell.textContent.trim() === '指标'); if (indicator) { Array.from(table.tBodies || []).forEach(body => Array.from(body.rows).forEach(row => { const name = Array.from(row.cells).find(cell => cell.textContent.trim() === '平均时效'); if (!name) { row.remove(); return; } name.remove(); })); indicator.remove(); table.dataset.outboundFlat = 'true'; } Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows)).forEach(row => { const category = Array.from(row.cells).find(cell => ['香化', '酒水'].includes(cell.textContent.trim())); if (!category) return; const target = category.nextElementSibling; if (!target) return; target.textContent = category.textContent.trim() === '香化' ? '4小时' : '10小时'; let afterTarget = false; Array.from(row.cells).forEach(cell => { if (afterTarget) toHours(cell); if (cell === target) afterTarget = true; }); }); }); };
   const normalizeStoreStageNode = () => {
     document.querySelectorAll('table').forEach(table => {
       const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
@@ -479,7 +505,7 @@
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
+  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
