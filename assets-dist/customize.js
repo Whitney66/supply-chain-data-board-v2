@@ -73,26 +73,29 @@
         if (nextCell) nextCell.classList.add('border-l-2', 'border-gray-300');
       }
     });
-    const columnTones = {
-      '品类': '#fff8e6',
-      '目标值': '#fff8e6',
-      '当前平均值': '#fff8e6',
-      '件数达标率': '#fff8e6',
-      '上月值': '#f2fae8',
-      '环比': '#f2fae8',
-      '同期值': '#eaf8ff',
-      '同比': '#eaf8ff'
-    };
     const finalHeaders = Array.from(headerRow.cells);
-    finalHeaders.forEach(cell => {
-      const tone = columnTones[cell.textContent.trim()];
+    const headerIndex = label => finalHeaders.findIndex(cell => cell.textContent.trim() === label);
+    const categoryStart = headerIndex('品类');
+    const categoryEnd = headerIndex('件数达标率');
+    const previousStart = Math.max(headerIndex('上期值'), headerIndex('上月值'));
+    const previousEnd = headerIndex('环比');
+    const samePeriodStart = headerIndex('同期值');
+    const samePeriodEnd = headerIndex('同比');
+    const columnTone = index => {
+      if (categoryStart >= 0 && index >= categoryStart && index <= categoryEnd) return '#fff8e6';
+      if (previousStart >= 0 && index >= previousStart && index <= previousEnd) return '#f2fae8';
+      if (samePeriodStart >= 0 && index >= samePeriodStart && index <= samePeriodEnd) return '#eaf8ff';
+      return '';
+    };
+    finalHeaders.forEach((cell, index) => {
+      const tone = columnTone(index);
       if (tone) cell.style.backgroundColor = tone;
     });
     Array.from(body.rows).forEach(row => {
       const cells = Array.from(row.cells);
       const rowOffset = finalHeaders.length - cells.length;
       finalHeaders.forEach((headerCell, logicalIndex) => {
-        const tone = columnTones[headerCell.textContent.trim()];
+        const tone = columnTone(logicalIndex);
         const cell = cells[logicalIndex - rowOffset];
         if (tone && cell) cell.style.backgroundColor = tone;
       });
@@ -505,7 +508,7 @@
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); addControls(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
+  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
