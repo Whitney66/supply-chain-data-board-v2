@@ -85,6 +85,21 @@
         if (nextCell) nextCell.classList.add('border-l-2', 'border-gray-300');
       }
     });
+    const metricNames = logisticsCenterMetrics;
+    Array.from(body.rows).forEach(row => {
+      const metricCell = Array.from(row.cells).find(cell => metricNames.some(name => cell.textContent.includes(name)));
+      if (!metricCell) return;
+      const span = Math.max(1, metricCell.rowSpan || 1);
+      const storeCell = Array.from(row.cells).find(cell => cell.textContent.trim() === '海南国际物流中心');
+      if (!storeCell || span < 2) return;
+      storeCell.rowSpan = span;
+      const rowIndex = Array.from(body.rows).indexOf(row);
+      for (let offset = 1; offset < span; offset += 1) {
+        const nextRow = body.rows[rowIndex + offset];
+        const duplicate = Array.from(nextRow?.cells || []).find(cell => cell.textContent.trim() === '海南国际物流中心');
+        if (duplicate) duplicate.remove();
+      }
+    });
     const finalHeaders = Array.from(headerRow.cells);
     const headerIndex = label => finalHeaders.findIndex(cell => cell.textContent.trim() === label);
     const categoryStart = headerIndex('品类');
