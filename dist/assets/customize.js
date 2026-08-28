@@ -365,7 +365,21 @@
     const makeGrid = table => { const grid = []; Array.from(table.rows).forEach((row, r) => { grid[r] ||= []; let c = 0; Array.from(row.cells).forEach(cell => { while (grid[r][c]) c += 1; for (let rr = r; rr < r + Math.max(1, cell.rowSpan); rr += 1) { grid[rr] ||= []; for (let cc = c; cc < c + Math.max(1, cell.colSpan); cc += 1) grid[rr][cc] = cell; } c += Math.max(1, cell.colSpan); }); }); return grid; };
     document.querySelectorAll('table').forEach(table => { const rows = Array.from(table.rows); const grid = makeGrid(table); const headerRow = rows.findIndex(row => Array.from(row.cells).some(cell => cell.tagName === 'TH' && cell.textContent.includes('目标值'))); if (headerRow < 0) return; const headers = grid[headerRow].map(cell => cell?.textContent.trim() || ''); const targetIndex = headers.findIndex(header => header.includes('目标值')); const statIndexes = headers.map((header, i) => ['当前平均值', '最大值', '上期值', '同期值'].includes(header) ? i : -1).filter(i => i >= 0); let metric = '', store = ''; rows.slice(headerRow + 1).forEach((row, offset) => { const r = headerRow + 1 + offset; const rowText = row.textContent || ''; metric = timingNames.find(name => rowText.includes(name)) || metric; const alias = aliasNames.find(name => rowText.includes(name)); store = alias ? aliases[alias] : store; if (!metric) return; const unit = dayMetrics.includes(metric) ? '天' : 'H'; const target = Object.prototype.hasOwnProperty.call(targets[metric], store) ? targets[metric][store] : targets[metric].default || '-'; const targetCell = grid[r]?.[targetIndex]; if (targetCell && targetCell.parentElement === row) targetCell.textContent = target; statIndexes.forEach(index => { const cell = grid[r]?.[index]; if (cell && cell.parentElement === row) format(cell, unit); }); }); });
   };
-  const flattenWarehouseOutboundDetail = () => { const toHours = cell => { const match = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|H|D|H)?$/i); if (!match) return; const value = /天|D/i.test(match[2] || '天') ? Number(match[1]) * 24 : Number(match[1]); cell.textContent = `${Number(value.toFixed(4))}H`; }; document.querySelectorAll('h4').forEach(title => { if (title.textContent.trim() !== '仓库出库平均时效') return; const section = title.closest('.mb-6') || title.parentElement?.parentElement; const table = section?.querySelector('table'); if (!table) return; const indicator = Array.from(table.querySelectorAll('thead th')).find(cell => cell.textContent.trim() === '指标'); if (indicator) { Array.from(table.tBodies || []).forEach(body => Array.from(body.rows).forEach(row => { const name = Array.from(row.cells).find(cell => cell.textContent.trim() === '平均时效'); if (!name) { row.remove(); return; } name.remove(); })); indicator.remove(); table.dataset.outboundFlat = 'true'; } Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows)).forEach(row => { const category = Array.from(row.cells).find(cell => ['香化', '酒水'].includes(cell.textContent.trim())); if (!category) return; const target = category.nextElementSibling; if (!target) return; target.textContent = category.textContent.trim() === '香化' ? '4H' : '10H'; let afterTarget = false; Array.from(row.cells).forEach(cell => { if (afterTarget) toHours(cell); if (cell === target) afterTarget = true; }); }); }); };
+  const flattenWarehouseOutboundDetail = () => {
+    document.querySelectorAll('h4').forEach(title => {
+      if (title.textContent.trim() !== '仓库出库平均时效') return;
+      const section = title.closest('.mb-6') || title.parentElement?.parentElement;
+      const table = section?.querySelector('table');
+      if (!section || !table || table.dataset.outboundFlat === 'true') return;
+      let tableHost = table;
+      while (tableHost.parentElement && tableHost.parentElement !== section) tableHost = tableHost.parentElement;
+      Array.from(section.children).forEach(child => {
+        if (child !== tableHost) child.remove();
+      });
+      table.querySelectorAll('button, [role="button"]').forEach(control => control.remove());
+      table.dataset.outboundFlat = 'true';
+    });
+  };
   const normalizeStoreStageNode = () => {
     document.querySelectorAll('table').forEach(table => {
       const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
