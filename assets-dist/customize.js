@@ -33,10 +33,15 @@
     storeHeader.textContent = '门店';
     headers[metricIndex].after(storeHeader);
     const stores = ['三亚海棠湾店', '新海港店', '三亚凤凰机场店', '海口美兰机场店', '海口日月店', '博鳌店'];
+    const logisticsCenterMetrics = [
+      '全链路订货平均时效（一盘货）', '一线通关平均时效', '提货至海综保平均时效', '仓库入库平均时效',
+      '全链路分货平均时效', '仓库出库平均时效', '二线通关平均时效', '门店提货至上架平均时效'
+    ];
     Array.from(body.rows).forEach((row, index) => {
       const cell = document.createElement('td');
       cell.className = 'px-3 py-2 text-center text-gray-600 whitespace-nowrap';
-      cell.textContent = stores[index % stores.length];
+      const metricName = row.cells[metricIndex]?.textContent.trim() || '';
+      cell.textContent = logisticsCenterMetrics.some(name => metricName.includes(name)) ? '海南国际物流中心' : stores[index % stores.length];
       if (row.cells.length === headers.length) row.cells[metricIndex].after(cell);
       else row.cells[metricIndex]?.before(cell);
     });
