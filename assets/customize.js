@@ -708,15 +708,13 @@
     });
   };
   const rebuildStoreStageTables = () => {
-    const stageTab = Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === '门店段' && (button.className.includes('bg-blue') || button.className.includes('scale-105')));
+    const stageTab = Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === '门店段' && !button.disabled);
     if (!stageTab) return;
-    // Only run while the 门店段 tab is active.
-    const active = stageTab.className.includes('bg-blue') || stageTab.className.includes('scale-105') || stageTab.getAttribute('aria-selected') === 'true';
+    // The active tab is purple in the current prototype, not blue.
+    const active = stageTab.getAttribute('aria-selected') === 'true' || /blue|purple|indigo|scale-105/.test(stageTab.className) || stageTab.className.includes('text-white');
     if (!active) return;
-    // Prefer the panel immediately following the tab list; never scan the
-    // shared dashboard ancestor that also contains订货段和分货段 tables.
-    const tabList = stageTab.parentElement;
-    const root = tabList?.nextElementSibling?.querySelector('table') ? tabList.nextElementSibling : tabList?.parentElement;
+    const heading = Array.from(document.querySelectorAll('h2,h3,h4')).find(el => el.textContent.trim() === '门店段');
+    const root = heading?.parentElement?.parentElement || stageTab.parentElement?.parentElement;
     if (!root) return;
     root.querySelectorAll('table').forEach(table => {
       if (table.dataset.storeStageRebuilt === 'true') return;
