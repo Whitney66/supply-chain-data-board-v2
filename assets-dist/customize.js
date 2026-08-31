@@ -639,6 +639,37 @@
       table.dataset.timingDetailReady = 'true';
     });
   };
+  const applyRequestedStoreTables = () => {
+    const locateHeading = name => Array.from(document.querySelectorAll('h3,h4,div,p')).find(el => el.children.length === 0 && el.textContent.trim().includes(name));
+    const pickupHeading = locateHeading('门店提货至上架平均时效');
+    const pickupTable = pickupHeading?.parentElement?.querySelector('table') || pickupHeading?.nextElementSibling?.querySelector('table');
+    if (pickupTable && !pickupTable.dataset.requestedStoreReady) {
+      const head = pickupTable.tHead?.rows?.[0]; const body = pickupTable.tBodies?.[0];
+      if (head && body) {
+        const labels = Array.from(head.cells).map(c => c.textContent.trim());
+        const store = labels.indexOf('门店'); const monthly = labels.indexOf('月度均值');
+        if (store >= 0 && monthly >= 0) {
+          const original = Array.from(body.rows);
+          head.innerHTML = ''; ['门店','品类','目标值','日度均值','月度均值'].forEach(text => { const th = document.createElement('th'); th.className = 'px-3 py-2 text-center'; th.textContent = text; head.appendChild(th); });
+          body.innerHTML = '';
+          original.forEach((old, index) => { const name = old.cells[store]?.textContent.trim() || (index ? '门店明细' : '整体'); const value = old.cells[monthly]?.textContent.trim() || '-'; const row = body.insertRow(); [name, '门店提货至上架', '-', value, value].forEach(text => { const td = row.insertCell(); td.className = 'px-3 py-2 text-center'; td.textContent = text; }); });
+          pickupTable.dataset.requestedStoreReady = 'true';
+        }
+      }
+    }
+    const stageTab = Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === '门店段' && /purple|blue|indigo|text-white|scale-105/.test(button.className));
+    if (!stageTab) return;
+    const stageRoot = stageTab.closest('section') || stageTab.parentElement?.parentElement;
+    stageRoot?.querySelectorAll('table').forEach(table => {
+      if (table.dataset.requestedStageReady || !table.offsetParent) return;
+      const head = table.tHead?.rows?.[0]; const body = table.tBodies?.[0];
+      if (!head || !body || !head.textContent.includes('门店')) return;
+      const labels = Array.from(head.cells).map(c => c.textContent.trim()); const store = labels.indexOf('门店'); const monthly = labels.indexOf('月度均值');
+      if (store < 0 || monthly < 0) return;
+      const original = Array.from(body.rows); head.innerHTML = ''; ['门店','品类','目标值','日度均值','月度均值'].forEach(text => { const th=document.createElement('th'); th.className='px-3 py-2 text-center'; th.textContent=text; head.appendChild(th); }); body.innerHTML='';
+      original.forEach((old,index) => { const name=old.cells[store]?.textContent.trim() || (index?'门店明细':'整体'); const value=old.cells[monthly]?.textContent.trim() || '-'; const row=body.insertRow(); [name,'门店段指标','-',value,value].forEach(text=>{const td=row.insertCell();td.className='px-3 py-2 text-center';td.textContent=text;}); }); table.dataset.requestedStageReady='true';
+    });
+  };
   const normalizeStorePickupTables = () => {
     document.querySelectorAll('table').forEach(table => {
       if (table.dataset.storePickupFixed || !table.textContent.includes('门店提货至上架平均时效')) return;
@@ -739,7 +770,7 @@
       table.dataset.storeStageRebuilt = 'true';
     });
   };
-  const run = () => {
+  const run = () => { applyRequestedStoreTables();
     [enhanceTrend, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, rebuildStoreStageTables, enhanceStoreStageMetrics, normalizeStoreStageNode, normalizeStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
   };
   const start = () => { run(); setInterval(run, 300); };
