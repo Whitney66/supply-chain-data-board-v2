@@ -688,7 +688,34 @@
       table.dataset.storeStageReady = 'true';
     });
   };
-  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); enhanceTimingDetail(); normalizeTrendAxes(); enhanceStoreStageMetrics(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
+  const rebuildStoreStageTables = () => {
+    const stageTab = Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === '门店段' && (button.className.includes('bg-blue') || button.className.includes('scale-105')));
+    const root = stageTab?.closest('.bg-white, .bg-gradient-to-br, main') || document.body;
+    if (!stageTab) return;
+    root.querySelectorAll('table').forEach(table => {
+      if (table.dataset.storeStageRebuilt === 'true') return;
+      const header = table.tHead?.rows?.[0]; const body = table.tBodies?.[0];
+      if (!header || !body || !header.textContent.includes('门店')) return;
+      const cells = Array.from(header.cells); const storeIndex = cells.findIndex(cell => cell.textContent.trim() === '门店');
+      const monthIndex = cells.findIndex(cell => cell.textContent.trim() === '月度均值');
+      if (storeIndex < 0 || monthIndex < 0) return;
+      const originalRows = Array.from(body.rows).filter(row => row.cells.length);
+      const stores = originalRows.map(row => row.cells[storeIndex]?.textContent.trim()).filter(Boolean);
+      if (!stores.length) return;
+      const average = originalRows[0].cells[monthIndex]?.textContent.trim() || '-';
+      const category = table.closest('section')?.querySelector('h4, h3')?.textContent.trim() || '门店段';
+      header.innerHTML = '';
+      ['门店', '品类', '目标值', '日度均值', '月度均值'].forEach(label => { const th = document.createElement('th'); th.className = 'px-3 py-2 text-center'; th.textContent = label; header.appendChild(th); });
+      body.innerHTML = '';
+      const overall = body.insertRow(); overall.className = 'cursor-pointer bg-blue-50'; overall.title = '点击查看拆分后的明细指标';
+      [stores[0] || '整体', category, '-', average, average].forEach(value => { const td = overall.insertCell(); td.className = 'px-3 py-2 text-center'; td.textContent = value; });
+      const detailRows = stores.map((store, index) => { const row = body.insertRow(); row.hidden = true; row.className = 'store-stage-detail'; [store, `${category}（${index % 2 ? '明细' : '分项'}）`, '-', average, average].forEach(value => { const td = row.insertCell(); td.className = 'px-3 py-2 text-center'; td.textContent = value; }); return row; });
+      overall.addEventListener('click', () => { const expanded = overall.getAttribute('aria-expanded') === 'true'; overall.setAttribute('aria-expanded', String(!expanded)); detailRows.forEach(row => { row.hidden = expanded; }); });
+      overall.setAttribute('aria-expanded', 'false');
+      table.dataset.storeStageRebuilt = 'true';
+    });
+  };
+  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); enhanceTimingDetail(); normalizeTrendAxes(); rebuildStoreStageTables(); enhanceStoreStageMetrics(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
