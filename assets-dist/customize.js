@@ -781,6 +781,17 @@
     });
   };
   // Leave the application table layout and click behavior intact.
+  const fixOverviewDecimals = () => {
+    const numberPattern = /^(-?(?:\\d+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?e[+-]?\\d+))(天|小时|D|H)$/i;
+    document.querySelectorAll('table td, table th').forEach(cell => {
+      const match = cell.textContent.trim().match(numberPattern);
+      if (!match) return;
+      const value = Number(match[1]);
+      if (!Number.isFinite(value)) return;
+      const unit = /天|D/i.test(match[2]) ? 'D' : 'H';
+      cell.textContent = `${value.toFixed(2).replace(/\\.00$/, '')}${unit}`;
+    });
+  };
   const remove7063Notice = () => {
     document.querySelectorAll('body *').forEach(element => {
       if (element.children.length) return;
@@ -788,7 +799,7 @@
       if (text.includes('当前仅展示门店【7063】的拆分指标明细。') || text.includes('7063 指标明细')) element.remove();
     });
   };
-  const run = () => { remove7063Notice(); formatRequestedTimingTables(); normalizeTimingTargetUnits(); };
+  const run = () => { remove7063Notice(); formatRequestedTimingTables(); normalizeTimingTargetUnits(); fixOverviewDecimals(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
