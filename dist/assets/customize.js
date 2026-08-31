@@ -772,7 +772,14 @@
   };
   // Leave timing tables to the application: its default state is overall
   // store data, and clicking a store expands the detail rows.
-  const run = () => {};
+  const remove7063Notice = () => {
+    document.querySelectorAll('body *').forEach(element => {
+      if (element.children.length) return;
+      const text = element.textContent.trim();
+      if (text.includes('当前仅展示门店【7063】的拆分指标明细。') || text.includes('7063 指标明细')) element.remove();
+    });
+  };
+  const run = () => { remove7063Notice(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
