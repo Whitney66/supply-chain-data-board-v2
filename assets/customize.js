@@ -770,8 +770,17 @@
       table.dataset.storeStageRebuilt = 'true';
     });
   };
-  // Leave timing tables to the application: its default state is overall
-  // store data, and clicking a store expands the detail rows.
+  const formatRequestedTimingTables = () => {
+    document.querySelectorAll('table').forEach(table => {
+      const text = table.textContent || ''; if (!text.includes('门店提货至上架平均时效') && !text.includes('门店段')) return;
+      const head = table.tHead?.rows?.[0]; const body = table.tBodies?.[0]; if (!head || !body) return;
+      const labels = Array.from(head.cells).map(c => c.textContent.trim()); const target = labels.findIndex(x => x.includes('目标值')); if (target < 0) return;
+      const targetCell = Array.from(body.rows).map(r => r.cells[target]).find(c => c && /(?:D|H|天|小时)/i.test(c.textContent)); if (!targetCell) return;
+      const unit = /天|D/i.test(targetCell.textContent) ? 'D' : 'H';
+      Array.from(body.rows).forEach(row => Array.from(row.cells).forEach(cell => { const m=cell.textContent.trim().match(/^(\d+(?:\.\d+)?)(天|D|小时|H)$/i); if(!m) return; let v=Number(m[1]); const source=/天|D/i.test(m[2])?'D':'H'; if(source!==unit)v=source==='D'?v*24:v/24; cell.textContent=`${Number(v.toFixed(4))}${unit}`; }));
+    });
+  };
+  // Leave the application table layout and click behavior intact.
   const remove7063Notice = () => {
     document.querySelectorAll('body *').forEach(element => {
       if (element.children.length) return;
@@ -779,7 +788,7 @@
       if (text.includes('当前仅展示门店【7063】的拆分指标明细。') || text.includes('7063 指标明细')) element.remove();
     });
   };
-  const run = () => { remove7063Notice(); };
+  const run = () => { remove7063Notice(); formatRequestedTimingTables(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
