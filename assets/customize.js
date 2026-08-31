@@ -741,7 +741,9 @@
       table.dataset.storeStageRebuilt = 'true';
     });
   };
-  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); normalizeStorePickupTables(); normalizeTrendAxes(); rebuildStoreStageTables(); enhanceStoreStageMetrics(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
+  const run = () => {
+    [enhanceTrend, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, rebuildStoreStageTables, enhanceStoreStageMetrics, normalizeStoreStageNode, normalizeStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
+  };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
