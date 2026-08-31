@@ -770,6 +770,17 @@
       table.dataset.storeStageRebuilt = 'true';
     });
   };
+  const forceTimingUnits = () => {
+    const parse = text => text.trim().match(/^(-?\\d+(?:\\.\\d+)?)(天|小时|D|H)$/i);
+    const convert = (cell, unit) => { const match = parse(cell.textContent); if (!match) return; let value = Number(match[1]); const source = /天|D/i.test(match[2]) ? 'D' : 'H'; if (source !== unit) value = source === 'D' ? value * 24 : value / 24; cell.textContent = `${Number(value.toFixed(2))}${unit}`; };
+    const roots = Array.from(document.querySelectorAll('h2,h3,h4')).filter(el => /指标明细|门店段/.test(el.textContent)).map(el => el.parentElement?.parentElement || el.parentElement).filter(Boolean);
+    roots.forEach(root => root.querySelectorAll('table').forEach(table => {
+      const cells = Array.from(table.querySelectorAll('td')); const targetCells = cells.filter(cell => /目标值/.test(table.tHead?.textContent || '') && parse(cell.textContent));
+      const target = targetCells.find(cell => parse(cell.textContent)); if (!target) return;
+      const unit = /天|D/i.test(target.textContent) ? 'D' : 'H';
+      cells.forEach(cell => convert(cell, unit));
+    }));
+  };
   const formatRequestedTimingTables = () => {
     document.querySelectorAll('table').forEach(table => {
       const text = table.textContent || ''; if (!text.includes('门店提货至上架平均时效') && !text.includes('门店段')) return;
@@ -799,7 +810,7 @@
       if (text.includes('当前仅展示门店【7063】的拆分指标明细。') || text.includes('7063 指标明细')) element.remove();
     });
   };
-  const run = () => { remove7063Notice(); formatRequestedTimingTables(); normalizeTimingTargetUnits(); fixOverviewDecimals(); };
+  const run = () => { remove7063Notice(); formatRequestedTimingTables(); normalizeTimingTargetUnits(); fixOverviewDecimals(); forceTimingUnits(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
