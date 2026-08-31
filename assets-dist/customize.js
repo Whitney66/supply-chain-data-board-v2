@@ -770,9 +770,9 @@
       table.dataset.storeStageRebuilt = 'true';
     });
   };
-  const run = () => { applyRequestedStoreTables();
-    [enhanceTrend, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, rebuildStoreStageTables, enhanceStoreStageMetrics, normalizeStoreStageNode, normalizeStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
-  };
+  // Leave timing tables to the application: its default state is overall
+  // store data, and clicking a store expands the detail rows.
+  const run = () => {};
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
