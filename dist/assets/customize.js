@@ -722,7 +722,7 @@
       table.dataset.storeStageRebuilt = 'true';
     });
   };
-  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); enhanceTimingDetail(); normalizeTrendAxes(); rebuildStoreStageTables(); enhanceStoreStageMetrics(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
+  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); normalizeTrendAxes(); rebuildStoreStageTables(); enhanceStoreStageMetrics(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
