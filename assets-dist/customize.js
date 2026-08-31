@@ -364,10 +364,14 @@
     const exclusionNames = ['门店提货至上架平均时效', '监管仓-周转仓调拨平均时效', '周转仓-卖场调拨平均时效'];
     document.querySelectorAll('button').forEach(button => {
       if (!button.textContent.includes('剔除前后')) return;
-      const rowContext = button.closest('tr')?.textContent || '';
-      const parentContext = button.parentElement?.parentElement?.textContent || '';
-      const allowed = exclusionMetrics.some(metricId => rowContext.includes(metricId) || parentContext.includes(metricId)) || exclusionNames.some(name => rowContext.includes(name) || parentContext.includes(name));
+      // The metric and action are not always siblings (the action can be in a
+      // nested cell), so inspect the complete row/section before hiding it.
+      let context = button.closest('tr')?.textContent || '';
+      let node = button.parentElement;
+      for (let level = 0; level < 5 && node; level += 1, node = node.parentElement) context += ` ${node.textContent || ''}`;
+      const allowed = exclusionMetrics.some(metricId => context.includes(metricId)) || exclusionNames.some(name => context.includes(name));
       button.hidden = !allowed;
+      button.style.display = allowed ? '' : 'none';
     });
   };
   const normalizeTimingTargetUnits = () => {
@@ -603,7 +607,53 @@
       if (element.textContent.trim() === '非TOP300') element.closest('.flex, .grid, section')?.remove();
     });
   };
-  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
+  const enhanceTimingDetail = () => {
+    const dayMetrics = ['全链路订货平均时效（一盘货）', '提货至海综保平均时效'];
+    const panelTitle = Array.from(document.querySelectorAll('h2, h3, h4')).find(el => el.textContent.trim() === '指标明细');
+    const panel = panelTitle?.closest('.bg-white, section');
+    if (!panel) return;
+    panel.querySelectorAll('table').forEach(table => {
+      if (table.dataset.timingDetailReady === 'true') return;
+      const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
+      const metricIndex = headers.findIndex(label => ['指标名称', '指标'].includes(label));
+      if (metricIndex < 0) return;
+      const rows = Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows));
+      const target = rows.find(row => row.textContent.includes('门店提货至上架平均时效'));
+      if (!target || target.dataset.timingOverall) return;
+      const details = rows.filter(row => row !== target && row.textContent.includes('门店提货至上架平均时效'));
+      target.dataset.timingOverall = 'true';
+      target.classList.add('cursor-pointer', 'bg-blue-50');
+      target.title = '点击展开/收起门店明细';
+      details.forEach(row => { row.hidden = true; row.dataset.timingDetail = 'true'; });
+      target.addEventListener('click', () => {
+        const expanded = target.getAttribute('aria-expanded') === 'true';
+        target.setAttribute('aria-expanded', String(!expanded));
+        details.forEach(row => { row.hidden = expanded; });
+      });
+      const cell = target.cells[metricIndex];
+      if (cell && !cell.querySelector('[data-overall-badge]')) {
+        const badge = document.createElement('span');
+        badge.dataset.overallBadge = 'true'; badge.className = 'ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700'; badge.textContent = '整体';
+        cell.appendChild(badge);
+      }
+      table.dataset.timingDetailReady = 'true';
+    });
+  };
+  const normalizeTrendAxes = () => {
+    const dayMetrics = ['全链路订货平均时效（一盘货）', '提货至海综保平均时效'];
+    const title = Array.from(document.querySelectorAll('h3')).find(el => el.textContent.includes('时效变化趋势'));
+    const panel = title?.parentElement;
+    if (!panel) return;
+    panel.querySelectorAll('svg').forEach(svg => {
+      const metric = Array.from(document.querySelectorAll('button, select option, td')).map(el => el.textContent.trim()).find(name => name.includes('平均时效')) || '';
+      const axis = dayMetrics.some(name => metric.includes(name)) ? '时效/天（D）' : '时效/小时（H）';
+      if (!svg.querySelector('[data-timing-axis-label]')) {
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.dataset.timingAxisLabel = 'true'; label.setAttribute('transform', 'translate(14 150) rotate(-90)'); label.setAttribute('text-anchor', 'middle'); label.setAttribute('font-size', '11'); label.setAttribute('fill', '#6b7280'); label.textContent = axis; svg.appendChild(label);
+      }
+    });
+  };
+  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); enhanceTimingDetail(); normalizeTrendAxes(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
