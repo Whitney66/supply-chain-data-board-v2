@@ -639,6 +639,25 @@
       table.dataset.timingDetailReady = 'true';
     });
   };
+  const normalizeStorePickupTables = () => {
+    document.querySelectorAll('table').forEach(table => {
+      if (table.dataset.storePickupFixed || !table.textContent.includes('门店提货至上架平均时效')) return;
+      const head = table.tHead?.rows?.[0]; const body = table.tBodies?.[0];
+      if (!head || !body) return;
+      const labels = Array.from(head.cells).map(cell => cell.textContent.trim());
+      const metricIndex = labels.findIndex(label => ['指标名称', '指标', '具体指标'].includes(label));
+      if (metricIndex < 0) return;
+      const overall = Array.from(body.rows).find(row => row.textContent.includes('门店提货至上架平均时效'));
+      if (!overall) return;
+      const details = Array.from(body.rows).filter(row => row !== overall && row.textContent.includes('门店提货至上架平均时效'));
+      details.forEach(row => { row.hidden = true; });
+      overall.classList.add('cursor-pointer', 'bg-blue-50'); overall.title = '点击展开/收起门店明细'; overall.setAttribute('aria-expanded', 'false');
+      overall.addEventListener('click', () => { const open = overall.getAttribute('aria-expanded') === 'true'; overall.setAttribute('aria-expanded', String(!open)); details.forEach(row => { row.hidden = open; }); });
+      const cell = overall.cells[metricIndex];
+      if (cell && !cell.querySelector('[data-overall-badge]')) { const badge = document.createElement('span'); badge.dataset.overallBadge = 'true'; badge.className = 'ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700'; badge.textContent = '整体'; cell.appendChild(badge); }
+      table.dataset.storePickupFixed = 'true';
+    });
+  };
   const normalizeTrendAxes = () => {
     const dayMetrics = ['全链路订货平均时效（一盘货）', '提货至海综保平均时效'];
     const title = Array.from(document.querySelectorAll('h3')).find(el => el.textContent.includes('时效变化趋势'));
@@ -722,7 +741,7 @@
       table.dataset.storeStageRebuilt = 'true';
     });
   };
-  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); normalizeTrendAxes(); rebuildStoreStageTables(); enhanceStoreStageMetrics(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
+  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); normalizeStorePickupTables(); normalizeTrendAxes(); rebuildStoreStageTables(); enhanceStoreStageMetrics(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
