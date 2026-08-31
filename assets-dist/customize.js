@@ -653,7 +653,42 @@
       }
     });
   };
-  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); enhanceTimingDetail(); normalizeTrendAxes(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
+  const enhanceStoreStageMetrics = () => {
+    document.querySelectorAll('table').forEach(table => {
+      const headerRow = table.tHead?.rows?.[0];
+      const headers = headerRow ? Array.from(headerRow.cells).map(cell => cell.textContent.trim()) : [];
+      const stageIndex = headers.indexOf('业务环节');
+      if (stageIndex < 0 || !Array.from(table.tBodies || []).some(body => Array.from(body.rows).some(row => row.textContent.includes('门店段')))) return;
+      if (table.dataset.storeStageReady === 'true') return;
+      const rows = Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows));
+      const keep = ['门店', '品类', '目标值', '日度均值', '月度均值'];
+      Array.from(headerRow.cells).forEach((cell, index) => {
+        const label = headers[index];
+        if (!keep.includes(label)) { cell.hidden = true; rows.forEach(row => { const offset = headers.length - row.cells.length; const actual = row.cells[index - offset]; if (actual) actual.hidden = true; }); }
+        else if (label === '业务环节') cell.textContent = '品类';
+      });
+      const storeIndex = headers.indexOf('门店');
+      rows.forEach((row, index) => {
+        const storeCell = row.cells[storeIndex >= 0 ? storeIndex : 0];
+        if (!storeCell || !storeCell.textContent.trim() || storeCell.textContent.trim() === '整体') return;
+        if (storeCell.rowSpan > 1) {
+          const span = storeCell.rowSpan;
+          const details = rows.slice(index + 1, index + span);
+          details.forEach(detail => { detail.hidden = true; detail.dataset.storeDetail = 'true'; });
+          storeCell.classList.add('cursor-pointer', 'text-blue-700');
+          storeCell.title = '点击查看拆分后的明细指标';
+          storeCell.setAttribute('aria-expanded', 'false');
+          storeCell.addEventListener('click', () => {
+            const expanded = storeCell.getAttribute('aria-expanded') === 'true';
+            storeCell.setAttribute('aria-expanded', String(!expanded));
+            details.forEach(detail => { detail.hidden = expanded; });
+          });
+        }
+      });
+      table.dataset.storeStageReady = 'true';
+    });
+  };
+  const run = () => { enhanceTrend(); mergeOverview(); hideRequestedMetrics(); limitExclusionControls(); normalizeTimingTargetUnits(); flattenWarehouseOutboundDetail(); enhanceTimingDetail(); normalizeTrendAxes(); enhanceStoreStageMetrics(); normalizeStoreStageNode(); normalizeStoreStageMetrics(); fixStoreStageRowSpan(); normalizeExceptionMetricScope(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
