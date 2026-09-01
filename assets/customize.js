@@ -797,7 +797,14 @@
     document.querySelectorAll('table td, table th').forEach(cell => {
       const match = cell.textContent.trim().match(numberPattern);
       if (!match) return;
-      const value = Number(match[1]);
+      const raw = match[1];
+      const scientific = raw.match(/^(-?\\d+(?:\\.\\d+)?)e([+-]\\d+)$/i);
+      // Timing values in the overview are measured in hours or days. A value
+      // rendered as e+21 is an upstream scale artifact, not a real duration;
+      // retain its coefficient (the intended business value) and never expose
+      // the unusable exponent in the UI.
+      const exponent = scientific ? Number(scientific[2]) : 0;
+      const value = scientific && exponent >= 6 ? Number(scientific[1]) : Number(raw);
       if (!Number.isFinite(value)) return;
       const unit = /天|D/i.test(match[2]) ? 'D' : 'H';
       cell.textContent = `${value.toFixed(2).replace(/\\.00$/, '')}${unit}`;
