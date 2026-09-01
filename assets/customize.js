@@ -382,7 +382,7 @@
     const aliasNames = ['香化仓', '酒水仓', '香化', '酒水', '三亚店', '新海港店', '日月店', '美兰店', '博鳌店', '凤凰机场店', '全岛整体', '整体', '一盘货'];
     const format = (cell, unit) => { const m = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|小时|H|D)?$/i); if (!m) return; let value = Number(m[1]); const source = /天|D/i.test(m[2] || '') ? 'D' : /小时|H/i.test(m[2] || '') ? 'H' : unit; if (source !== unit) value = source === 'D' ? value * 24 : value / 24; cell.textContent = `${Number(value.toFixed(4))}${unit}`; };
     const makeGrid = table => { const grid = []; Array.from(table.rows).forEach((row, r) => { grid[r] ||= []; let c = 0; Array.from(row.cells).forEach(cell => { while (grid[r][c]) c += 1; for (let rr = r; rr < r + Math.max(1, cell.rowSpan); rr += 1) { grid[rr] ||= []; for (let cc = c; cc < c + Math.max(1, cell.colSpan); cc += 1) grid[rr][cc] = cell; } c += Math.max(1, cell.colSpan); }); }); return grid; };
-    document.querySelectorAll('table').forEach(table => { const rows = Array.from(table.rows); const grid = makeGrid(table); const headerRow = rows.findIndex(row => Array.from(row.cells).some(cell => cell.tagName === 'TH' && cell.textContent.includes('目标值'))); if (headerRow < 0) return; const headers = grid[headerRow].map(cell => cell?.textContent.trim() || ''); const targetIndex = headers.findIndex(header => header.includes('目标值')); const statIndexes = headers.map((header, i) => ['当前平均值', '最大值', '上期值', '同期值'].includes(header) ? i : -1).filter(i => i >= 0); let metric = '', store = ''; rows.slice(headerRow + 1).forEach((row, offset) => { const r = headerRow + 1 + offset; const rowText = row.textContent || ''; metric = timingNames.find(name => rowText.includes(name)) || metric; const alias = aliasNames.find(name => rowText.includes(name)); store = alias ? aliases[alias] : store; if (!metric) return; const unit = dayMetrics.includes(metric) ? '天' : 'H'; const target = Object.prototype.hasOwnProperty.call(targets[metric], store) ? targets[metric][store] : targets[metric].default || '-'; const targetCell = grid[r]?.[targetIndex]; if (targetCell && targetCell.parentElement === row) targetCell.textContent = target; statIndexes.forEach(index => { const cell = grid[r]?.[index]; if (cell && cell.parentElement === row) format(cell, unit); }); }); const detailHeaders = ['日度均值', '月度均值']; if (detailHeaders.every(label => headers.includes(label))) { rows.slice(headerRow + 1).forEach(row => { const metricCell = Array.from(row.cells).find(cell => cell.textContent.trim() === '平均时效'); if (!metricCell) return; Array.from(row.cells).forEach(cell => { const match = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|D|小时|H)?$/i); if (!match || !match[2] || !/天|D/i.test(match[2])) return; const hours = Number(match[1]) * 24; cell.textContent = `${Number(hours.toFixed(4))}H`; }); }); } });
+    document.querySelectorAll('table').forEach(table => { const rows = Array.from(table.rows); const grid = makeGrid(table); const headerRow = rows.findIndex(row => Array.from(row.cells).some(cell => cell.tagName === 'TH' && cell.textContent.includes('目标值'))); if (headerRow < 0) return; const headers = grid[headerRow].map(cell => cell?.textContent.trim() || ''); const targetIndex = headers.findIndex(header => header.includes('目标值')); const statIndexes = headers.map((header, i) => ['当前平均值', '最大值', '上期值', '同期值'].includes(header) ? i : -1).filter(i => i >= 0); let metric = '', store = ''; rows.slice(headerRow + 1).forEach((row, offset) => { const r = headerRow + 1 + offset; const rowText = row.textContent || ''; metric = timingNames.find(name => rowText.includes(name)) || metric; const alias = aliasNames.find(name => rowText.includes(name)); store = alias ? aliases[alias] : store; if (!metric) return; const unit = dayMetrics.includes(metric) ? 'D' : 'H'; const target = Object.prototype.hasOwnProperty.call(targets[metric], store) ? targets[metric][store] : targets[metric].default || '-'; const targetCell = grid[r]?.[targetIndex]; if (targetCell && targetCell.parentElement === row) targetCell.textContent = target; statIndexes.forEach(index => { const cell = grid[r]?.[index]; if (cell && cell.parentElement === row) format(cell, unit); }); }); const detailHeaders = ['日度均值', '月度均值']; if (detailHeaders.every(label => headers.includes(label))) { rows.slice(headerRow + 1).forEach(row => { const metricCell = Array.from(row.cells).find(cell => cell.textContent.trim() === '平均时效'); if (!metricCell) return; Array.from(row.cells).forEach(cell => { const match = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|D|小时|H)?$/i); if (!match || !match[2] || !/天|D/i.test(match[2])) return; const hours = Number(match[1]) * 24; cell.textContent = `${Number(hours.toFixed(4))}H`; }); }); } });
   };
   const flattenWarehouseOutboundDetail = () => {
     const data = {
@@ -696,7 +696,7 @@
     if (!panel) return;
     panel.querySelectorAll('svg').forEach(svg => {
       const metric = Array.from(document.querySelectorAll('button, select option, td')).map(el => el.textContent.trim()).find(name => name.includes('平均时效')) || '';
-      const axis = dayMetrics.some(name => metric.includes(name)) ? '时效/天（D）' : '时效/小时（H）';
+      const axis = dayMetrics.some(name => metric.includes(name)) ? '时效/D' : '时效/H';
       if (!svg.querySelector('[data-timing-axis-label]')) {
         const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         label.dataset.timingAxisLabel = 'true'; label.setAttribute('transform', 'translate(14 150) rotate(-90)'); label.setAttribute('text-anchor', 'middle'); label.setAttribute('font-size', '11'); label.setAttribute('fill', '#6b7280'); label.textContent = axis; svg.appendChild(label);
@@ -812,7 +812,7 @@
         valueIndexes.forEach((index, valueIndex) => {
           const cell = row.cells[index];
           const value = Number.parseFloat(cell?.textContent.replace(/,/g, '') || '');
-          if (cell && Number.isFinite(value) && value > 365) cell.textContent = `${replacement[valueIndex]}天`;
+          if (cell && Number.isFinite(value) && value > 365) cell.textContent = `${replacement[valueIndex]}D`;
         });
       });
     });
@@ -843,7 +843,12 @@
       if (text.includes('当前仅展示门店【7063】的拆分指标明细。') || text.includes('7063 指标明细')) element.remove();
     });
   };
-  const run = () => { remove7063Notice(); formatRequestedTimingTables(); normalizeTimingTargetUnits(); repairOverviewTimingValues(); fixOverviewDecimals(); forceTimingUnits(); };
+  const normalizeTimingUnitLabels = () => {
+    document.querySelectorAll('table td, table th').forEach(cell => {
+      cell.textContent = cell.textContent.replace(/天/g, 'D').replace(/小时/g, 'H');
+    });
+  };
+  const run = () => { remove7063Notice(); formatRequestedTimingTables(); normalizeTimingTargetUnits(); repairOverviewTimingValues(); fixOverviewDecimals(); forceTimingUnits(); normalizeTimingUnitLabels(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
