@@ -856,7 +856,7 @@
     // Replace only text nodes so badges, icons, row spans and chart markup stay intact.
     document.querySelectorAll('table td, table th, svg text, svg title').forEach(replaceTextNodes);
   };
-  const run = () => { remove7063Notice(); formatRequestedTimingTables(); normalizeTimingTargetUnits(); repairOverviewTimingValues(); fixOverviewDecimals(); forceTimingUnits(); normalizeTimingUnitLabels(); };
+  const run = () => { repairOverviewTimingValues(); fixOverviewDecimals(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
