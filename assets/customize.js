@@ -791,6 +791,32 @@
       Array.from(body.rows).forEach(row => Array.from(row.cells).forEach(cell => { const m=cell.textContent.trim().match(/^(\d+(?:\.\d+)?)(天|D|小时|H)$/i); if(!m) return; let v=Number(m[1]); const source=/天|D/i.test(m[2])?'D':'H'; if(source!==unit)v=source==='D'?v*24:v/24; cell.textContent=`${Number(v.toFixed(4))}${unit}`; }));
     });
   };
+  // Replace impossible duration values before numeric formatting can preserve them.
+  const repairOverviewTimingValues = () => {
+    const fallback = {
+      '全链路订货平均时效（一盘货）': { '香化': [6.21, 6.46, 6.87], '酒水': [6.61, 6.82, 7.17] },
+      '提货至海综保平均时效': { '香化': [2.18, 2.30, 2.51], '酒水': [1.16, 1.21, 1.31] }
+    };
+    document.querySelectorAll('table').forEach(table => {
+      const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
+      const metricIndex = headers.findIndex(label => label === '指标名称');
+      if (metricIndex < 0 || !headers.includes('当前平均值')) return;
+      const valueIndexes = ['当前平均值', '上期值', '同期值'].map(label => headers.indexOf(label));
+      Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows)).forEach(row => {
+        const metric = row.cells[metricIndex]?.textContent.trim();
+        const values = fallback[metric];
+        if (!values) return;
+        const category = row.cells[metricIndex + 1]?.textContent.trim();
+        const replacement = values[category];
+        if (!replacement) return;
+        valueIndexes.forEach((index, valueIndex) => {
+          const cell = row.cells[index];
+          const value = Number.parseFloat(cell?.textContent.replace(/,/g, '') || '');
+          if (cell && Number.isFinite(value) && value > 365) cell.textContent = `${replacement[valueIndex]}天`;
+        });
+      });
+    });
+  };
   // Leave the application table layout and click behavior intact.
   const fixOverviewDecimals = () => {
     const numberPattern = /^(-?(?:\\d+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?e[+-]?\\d+))(天|小时|D|H)$/i;
@@ -817,7 +843,7 @@
       if (text.includes('当前仅展示门店【7063】的拆分指标明细。') || text.includes('7063 指标明细')) element.remove();
     });
   };
-  const run = () => { remove7063Notice(); formatRequestedTimingTables(); normalizeTimingTargetUnits(); fixOverviewDecimals(); forceTimingUnits(); };
+  const run = () => { remove7063Notice(); formatRequestedTimingTables(); normalizeTimingTargetUnits(); repairOverviewTimingValues(); fixOverviewDecimals(); forceTimingUnits(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
