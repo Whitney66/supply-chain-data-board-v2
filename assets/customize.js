@@ -696,7 +696,7 @@
     if (!panel) return;
     panel.querySelectorAll('svg').forEach(svg => {
       const metric = Array.from(document.querySelectorAll('button, select option, td')).map(el => el.textContent.trim()).find(name => name.includes('平均时效')) || '';
-      const axis = dayMetrics.some(name => metric.includes(name)) ? '时效/D' : '时效/H';
+      const axis = dayMetrics.some(name => metric.includes(name)) ? '时效/天（D）' : '时效/小时（H）';
       if (!svg.querySelector('[data-timing-axis-label]')) {
         const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         label.dataset.timingAxisLabel = 'true'; label.setAttribute('transform', 'translate(14 150) rotate(-90)'); label.setAttribute('text-anchor', 'middle'); label.setAttribute('font-size', '11'); label.setAttribute('fill', '#6b7280'); label.textContent = axis; svg.appendChild(label);
@@ -791,46 +791,13 @@
       Array.from(body.rows).forEach(row => Array.from(row.cells).forEach(cell => { const m=cell.textContent.trim().match(/^(\d+(?:\.\d+)?)(天|D|小时|H)$/i); if(!m) return; let v=Number(m[1]); const source=/天|D/i.test(m[2])?'D':'H'; if(source!==unit)v=source==='D'?v*24:v/24; cell.textContent=`${Number(v.toFixed(4))}${unit}`; }));
     });
   };
-  // Replace impossible duration values before numeric formatting can preserve them.
-  const repairOverviewTimingValues = () => {
-    const fallback = {
-      '全链路订货平均时效（一盘货）': { '香化': [6.21, 6.46, 6.87], '酒水': [6.61, 6.82, 7.17] },
-      '提货至海综保平均时效': { '香化': [2.18, 2.30, 2.51], '酒水': [1.16, 1.21, 1.31] }
-    };
-    document.querySelectorAll('table').forEach(table => {
-      const headers = Array.from(table.querySelectorAll('thead th')).map(cell => cell.textContent.trim());
-      const metricIndex = headers.findIndex(label => label === '指标名称');
-      if (metricIndex < 0 || !headers.includes('当前平均值')) return;
-      const valueIndexes = ['当前平均值', '上期值', '同期值'].map(label => headers.indexOf(label));
-      Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows)).forEach(row => {
-        const metric = row.cells[metricIndex]?.textContent.trim();
-        const values = fallback[metric];
-        if (!values) return;
-        const category = row.cells[metricIndex + 1]?.textContent.trim();
-        const replacement = values[category];
-        if (!replacement) return;
-        valueIndexes.forEach((index, valueIndex) => {
-          const cell = row.cells[index];
-          const value = Number.parseFloat(cell?.textContent.replace(/,/g, '') || '');
-          if (cell && Number.isFinite(value) && value > 365) cell.textContent = `${replacement[valueIndex]}D`;
-        });
-      });
-    });
-  };
   // Leave the application table layout and click behavior intact.
   const fixOverviewDecimals = () => {
     const numberPattern = /^(-?(?:\\d+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?e[+-]?\\d+))(天|小时|D|H)$/i;
     document.querySelectorAll('table td, table th').forEach(cell => {
       const match = cell.textContent.trim().match(numberPattern);
       if (!match) return;
-      const raw = match[1];
-      const scientific = raw.match(/^(-?\\d+(?:\\.\\d+)?)e([+-]\\d+)$/i);
-      // Timing values in the overview are measured in hours or days. A value
-      // rendered as e+21 is an upstream scale artifact, not a real duration;
-      // retain its coefficient (the intended business value) and never expose
-      // the unusable exponent in the UI.
-      const exponent = scientific ? Number(scientific[2]) : 0;
-      const value = scientific && exponent >= 6 ? Number(scientific[1]) : Number(raw);
+      const value = Number(match[1]);
       if (!Number.isFinite(value)) return;
       const unit = /天|D/i.test(match[2]) ? 'D' : 'H';
       cell.textContent = `${value.toFixed(2).replace(/\\.00$/, '')}${unit}`;
@@ -843,20 +810,9 @@
       if (text.includes('当前仅展示门店【7063】的拆分指标明细。') || text.includes('7063 指标明细')) element.remove();
     });
   };
-  const normalizeTimingUnitLabels = () => {
-    const replaceTextNodes = root => {
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      const nodes = [];
-      let node;
-      while ((node = walker.nextNode())) nodes.push(node);
-      nodes.forEach(textNode => {
-        textNode.nodeValue = textNode.nodeValue.replace(/天/g, 'D').replace(/小时/g, 'H');
-      });
-    };
-    // Replace only text nodes so badges, icons, row spans and chart markup stay intact.
-    document.querySelectorAll('table td, table th, svg text, svg title').forEach(replaceTextNodes);
+  const run = () => {
+    [enhanceTrend, addControls, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, rebuildStoreStageTables, enhanceStoreStageMetrics, normalizeStoreStageNode, normalizeStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope, remove7063Notice, formatRequestedTimingTables, fixOverviewDecimals, forceTimingUnits].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
   };
-  const run = () => { repairOverviewTimingValues(); fixOverviewDecimals(); };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
