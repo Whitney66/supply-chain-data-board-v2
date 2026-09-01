@@ -847,6 +847,11 @@
     document.querySelectorAll('table td, table th').forEach(cell => {
       cell.textContent = cell.textContent.replace(/天/g, 'D').replace(/小时/g, 'H');
     });
+    // Trend/detail charts render axis labels and tooltips inside SVG nodes,
+    // outside the table cells handled above.
+    document.querySelectorAll('svg text, svg title').forEach(node => {
+      node.textContent = node.textContent.replace(/天/g, 'D').replace(/小时/g, 'H');
+    });
   };
   const run = () => { remove7063Notice(); formatRequestedTimingTables(); normalizeTimingTargetUnits(); repairOverviewTimingValues(); fixOverviewDecimals(); forceTimingUnits(); normalizeTimingUnitLabels(); };
   const start = () => { run(); setInterval(run, 300); };
