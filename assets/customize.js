@@ -397,6 +397,7 @@
         ids: Array.from(label.textContent.matchAll(/\[(\d{4,})\]/g), match => match[1])
       })).filter(item => item.name !== '全选' && item.input);
       button?.click();
+      document.querySelectorAll('[data-store-warehouse-cascade]').forEach(storeMenu => storeMenu._renderWarehouses?.());
     }, 80);
   };
   const selectedStoreIds = menu => Array.from(menu.querySelectorAll('label')).filter(label => label.querySelector('input:checked') && label.textContent.trim() !== '全选').flatMap(label => Array.from(label.textContent.matchAll(/\[(\d{4,})\]/g), match => match[1]));
@@ -414,7 +415,8 @@
   const enhanceStoreCascadeMenu = storeGroup => {
     const selector = storeGroup.lastElementChild;
     const menu = selector?.querySelector('.absolute');
-    if (!menu || menu.dataset.storeWarehouseCascade === 'true') return;
+    if (!menu) return;
+    if (menu.dataset.storeWarehouseCascade === 'true') { menu._renderWarehouses?.(); return; }
     menu.dataset.storeWarehouseCascade = 'true';
     menu.style.width = '520px';
     menu.style.display = 'grid';
@@ -435,6 +437,7 @@
         label.append(input, document.createTextNode(warehouse.name)); warehousePanel.appendChild(label);
       });
     };
+    menu._renderWarehouses = renderWarehouses;
     renderWarehouses();
     menu.addEventListener('change', event => { if (event.target.matches('input[type="checkbox"]')) setTimeout(renderWarehouses, 0); });
   };
