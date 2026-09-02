@@ -392,10 +392,6 @@
     });
     if (!storeGroup || !warehouseGroup || storeGroup.dataset.storeWarehouseMerged === 'true') return;
     storeGroup.dataset.storeWarehouseMerged = 'true';
-    storeGroup.firstElementChild.textContent = '门店/仓库';
-    const selector = storeGroup.lastElementChild;
-    const selectorText = Array.from(selector.querySelectorAll('*')).find(element => element.children.length === 0 && element.textContent.trim().includes('全部门店'));
-    if (selectorText) selectorText.textContent = '全部门店/仓库';
     warehouseGroup.remove();
   };
   const hideRequestedMetrics = () => {
