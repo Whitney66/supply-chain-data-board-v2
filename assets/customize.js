@@ -378,6 +378,26 @@
     trendState.trigger = trigger;
     if (trendState.dialog) updateTrendDialog();
   };
+  const mergeStoreWarehouseFilter = () => {
+    const filterGroups = Array.from(document.querySelectorAll('main *')).filter(element => {
+      if (element.children.length !== 3) return false;
+      const [label, mode, selector] = Array.from(element.children);
+      return label.textContent.trim() === '门店' && mode.querySelectorAll('button').length === 3 && selector.tagName === 'BUTTON';
+    });
+    const storeGroup = filterGroups[0];
+    const warehouseGroup = Array.from(document.querySelectorAll('main *')).find(element => {
+      if (element.children.length !== 3) return false;
+      const [label, mode, selector] = Array.from(element.children);
+      return label.textContent.trim() === '仓库' && mode.querySelectorAll('button').length === 3 && selector.tagName === 'BUTTON';
+    });
+    if (!storeGroup || !warehouseGroup || storeGroup.dataset.storeWarehouseMerged === 'true') return;
+    storeGroup.dataset.storeWarehouseMerged = 'true';
+    storeGroup.firstElementChild.textContent = '门店/仓库';
+    const selector = storeGroup.lastElementChild;
+    const selectorText = Array.from(selector.querySelectorAll('*')).find(element => element.children.length === 0 && element.textContent.trim().includes('全部门店'));
+    if (selectorText) selectorText.textContent = '全部门店/仓库';
+    warehouseGroup.remove();
+  };
   const hideRequestedMetrics = () => {
     const hidden = ['直入直出全链路平均时效（监管仓-卖场）', '监管仓/周转仓-预定仓全链路平均时效'];
     getTables().forEach(table => {
@@ -710,11 +730,86 @@
     }
     positionExclusionFloat();
   };
-  // Targets mirror《20260828门店映射关系表+目标值维护V2》sheet 目标值维护 (column
-  // 2026年目标值). Metrics left blank there keep the '-' placeholder.
-  const TIMING_TARGETS = { '全链路订货平均时效（一盘货）': { '香化仓': '14D', '酒水仓': '7D' }, '一线通关平均时效': { default: '72H' }, '提货至海综保平均时效': { default: '2.5D' }, '仓库入库平均时效': { '香化仓': '8H', '酒水仓': '4H' }, '全链路入库平均时效（直发）': {}, '全链路分货平均时效': {}, '仓库出库平均时效': { '香化仓': '7H', '酒水仓': '12H' }, '二线通关平均时效': { '香化仓': '3H', '酒水仓': '7H' }, '门店提货至上架平均时效': { default: '4H' }, '监管仓-周转仓调拨平均时效': { default: '24H', '美兰店': '-' }, '周转仓-卖场调拨平均时效': {}, '全链路分拣仓入库平均时效': {}, '邮寄全链路平均时效': {}, '配送全链路平均时效': {}, '监管仓/周转仓-预定仓全链路平均时效': {}, '预定仓邮寄全链路平均时效': {}, '预定仓配送全链路平均时效': {} };
-  const TIMING_ALIASES = { '香化': '香化仓', '香化仓': '香化仓', '酒水': '酒水仓', '酒水仓': '酒水仓' };
+  // Targets mirror《门店映射关系表-门店名称更新版8.28》sheet 目标值维护: TIMING_TARGETS
+  // from column E (2026年目标值), TIMING_RATE_TARGETS from column H (达标率的
+  // 2026年目标值). Cells left blank in the workbook stay '-' here.
+  const TIMING_TARGETS = { '全链路订货平均时效（一盘货）': { '香化仓': '11D', '酒水仓': '7D' }, '一线通关平均时效': { default: '72H' }, '提货至海综保平均时效': { default: '2.5D' }, '仓库入库平均时效': { '香化仓': '5.5H', '酒水仓': '3H' }, '全链路入库平均时效（直发）': {}, '全链路分货平均时效': {}, '仓库出库平均时效': { '香化仓': '4H', '酒水仓': '10H' }, '二线通关平均时效': { '香化仓': '1.5H', '酒水仓': '7H' }, '门店提货至上架平均时效': { default: '4H' }, '监管仓-周转仓调拨平均时效': { default: '24H', '美兰店': '-' }, '周转仓-卖场调拨平均时效': {}, '直入直出全链路平均时效': {}, '全链路分拣仓入库平均时效': {}, '邮寄全链路平均时效': {}, '配送全链路平均时效': {}, '监管仓/周转仓-预定仓全链路平均时效': {}, '预定仓邮寄全链路平均时效': {}, '预定仓配送全链路平均时效': {} };
+  const TIMING_RATE_TARGETS = { '全链路订货平均时效（一盘货）': { '香化仓': '80.00%', '酒水仓': '70.00%' }, '一线通关平均时效': { default: '65.00%' }, '提货至海综保平均时效': {}, '仓库入库平均时效': {}, '全链路入库平均时效（直发）': {}, '全链路分货平均时效': {}, '仓库出库平均时效': { '香化仓': '97.00%', '酒水仓': '60.00%' }, '二线通关平均时效': {}, '门店提货至上架平均时效': { default: '75.00%' }, '监管仓-周转仓调拨平均时效': {}, '周转仓-卖场调拨平均时效': {}, '直入直出全链路平均时效': {}, '全链路分拣仓入库平均时效': {}, '邮寄全链路平均时效': {}, '配送全链路平均时效': {}, '监管仓/周转仓-预定仓全链路平均时效': {}, '预定仓邮寄全链路平均时效': {}, '预定仓配送全链路平均时效': {} };
+  // The workbook keys 品类 as 香化仓/酒水仓 and stores by short name; the dashboard
+  // uses 香化/酒水 and the full store names.
+  const TIMING_ALIASES = { '香化': '香化仓', '香化仓': '香化仓', '酒水': '酒水仓', '酒水仓': '酒水仓', '三亚海棠湾店': '三亚店', '三亚店': '三亚店', '海口日月店': '日月店', '日月店': '日月店', '海口美兰机场店': '美兰店', '美兰店': '美兰店', '三亚凤凰机场店': '凤凰机场店', '凤凰机场店': '凤凰机场店', '新海港店': '新海港店', '博鳌店': '博鳌店', '全岛整体': '全岛整体', '整体': '全岛整体' };
   const targetUnitOf = target => (/D$/i.test(target) ? 'D' : /H$/i.test(target) ? 'H' : null);
+  const lookupTarget = (map, metric, keys) => {
+    const entry = map[metric];
+    if (!entry) return null;
+    for (const raw of keys) {
+      const key = TIMING_ALIASES[raw] || raw;
+      if (Object.prototype.hasOwnProperty.call(entry, key)) return entry[key];
+    }
+    return Object.prototype.hasOwnProperty.call(entry, 'default') ? entry.default : '-';
+  };
+  // 指标明细 groups four rows per 品类/门店: 平均时效 carries the timing target and its
+  // unit drives every value in that row; 大于目标值的票数/件数 and 总票数/件数 are counts
+  // with no target at all, so they show '-'; 达标率 shows the workbook's 达标率 target
+  // when one is maintained and '-' otherwise.
+  const DETAIL_METRIC_NAMES = ['门店提货至上架平均时效', '监管仓-周转仓调拨平均时效', '周转仓-卖场调拨平均时效', '直入直出全链路平均时效', '全链路分拣仓入库平均时效', '全链路订货平均时效（一盘货）', '全链路订货平均时效', '全链路入库平均时效（直发）', '全链路入库平均时效', '全链路分货平均时效', '提货至海综保平均时效', '一线通关平均时效', '二线通关平均时效', '仓库入库平均时效', '仓库出库平均时效', '邮寄全链路平均时效', '配送全链路平均时效'];
+  const detailMetricOf = table => {
+    let node = table.parentElement, depth = 0;
+    while (node && depth < 12) {
+      const text = node.textContent || '';
+      const hit = DETAIL_METRIC_NAMES.find(name => text.includes(name));
+      if (hit) return Object.prototype.hasOwnProperty.call(TIMING_TARGETS, hit) ? hit : DETAIL_METRIC_NAMES.find(name => text.includes(name) && TIMING_TARGETS[name]) || null;
+      node = node.parentElement; depth += 1;
+    }
+    return null;
+  };
+  const convertToUnit = (cell, unit) => {
+    const match = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)\s*(天|小时|D|H)$/i);
+    if (!match) return;
+    let value = Number(match[1]);
+    const source = /天|D/i.test(match[2]) ? 'D' : 'H';
+    if (source !== unit) value = source === 'D' ? value * 24 : value / 24;
+    const next = `${Number(value.toFixed(2))}${unit}`;
+    if (cell.textContent.trim() !== next) cell.textContent = next;
+  };
+  const applyDetailTargets = () => {
+    document.querySelectorAll('table').forEach(table => {
+      const head = table.tHead?.rows?.[0];
+      const body = table.tBodies?.[0];
+      if (!head || !body) return;
+      const labels = Array.from(head.cells).map(cell => cell.textContent.trim());
+      const targetIndex = labels.findIndex(label => label.includes('目标值'));
+      const kindIndex = labels.findIndex(label => label === '指标');
+      // Some sections (一线通关 by store) list 平均时效 straight against 门店 with no
+      // 指标 column, so every body row there is a 平均时效 row.
+      const hasAverages = labels.includes('日度均值') || labels.includes('月度均值');
+      if (targetIndex < 0 || (kindIndex < 0 && !hasAverages)) return;
+      const metric = detailMetricOf(table);
+      if (!metric) return;
+      const catIndex = labels.indexOf('品类');
+      const storeIndex = labels.indexOf('门店');
+      const grid = buildTableGrid(table);
+      const rows = Array.from(table.rows);
+      let cat = '', store = '';
+      Array.from(body.rows).forEach(row => {
+        const r = rows.indexOf(row);
+        const at = index => (index >= 0 ? (grid[r]?.[index]?.textContent || '').trim() : '');
+        cat = at(catIndex) || cat;
+        store = at(storeIndex) || store;
+        const kind = kindIndex >= 0 ? at(kindIndex) : '平均时效';
+        const targetCell = grid[r]?.[targetIndex];
+        if (!targetCell || targetCell.parentElement !== row) return;
+        let target = '-';
+        if (kind === '平均时效') target = lookupTarget(TIMING_TARGETS, metric, [cat, store]) ?? '-';
+        else if (kind === '达标率') target = lookupTarget(TIMING_RATE_TARGETS, metric, [cat, store]) ?? '-';
+        if (targetCell.textContent.trim() !== target) targetCell.textContent = target;
+        if (kind !== '平均时效') return;
+        const unit = targetUnitOf(target);
+        if (!unit) return;
+        Array.from(row.cells).forEach(cell => { if (cell !== targetCell) convertToUnit(cell, unit); });
+      });
+    });
+  };
   // The 剔除前后 panel is a nested table inside a colspan cell, so the main target
   // pass skips it deliberately. Normalize it here against the same Excel map, or its
   // 目标值 keeps the raw 0.33D/0.17D values the prototype ships with.
@@ -762,19 +857,19 @@
     const isDataCell = cell => cell && (cell.colSpan || 1) === 1 && !cell.querySelector('table');
     const format = (cell, unit) => { if (!isDataCell(cell)) return; const m = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|小时|H|D)?$/i); if (!m) return; let value = Number(m[1]); const source = /天|D/i.test(m[2] || '') ? 'D' : /小时|H/i.test(m[2] || '') ? 'H' : unit; if (source !== unit) value = source === 'D' ? value * 24 : value / 24; cell.textContent = `${Number(value.toFixed(4))}${unit}`; };
     const makeGrid = table => { const grid = []; Array.from(table.rows).forEach((row, r) => { grid[r] ||= []; let c = 0; Array.from(row.cells).forEach(cell => { while (grid[r][c]) c += 1; for (let rr = r; rr < r + Math.max(1, cell.rowSpan); rr += 1) { grid[rr] ||= []; for (let cc = c; cc < c + Math.max(1, cell.colSpan); cc += 1) grid[rr][cc] = cell; } c += Math.max(1, cell.colSpan); }); }); return grid; };
-    document.querySelectorAll('table').forEach(table => { const rows = Array.from(table.rows); const grid = makeGrid(table); const headerRow = rows.findIndex(row => Array.from(row.cells).some(cell => cell.tagName === 'TH' && cell.textContent.includes('目标值'))); if (headerRow < 0) return; const headers = grid[headerRow].map(cell => cell?.textContent.trim() || ''); const targetIndex = headers.findIndex(header => header.includes('目标值')); const statIndexes = headers.map((header, i) => ['当前平均值', '最大值', '上期值', '同期值'].includes(header) ? i : -1).filter(i => i >= 0); let metric = '', store = ''; rows.slice(headerRow + 1).forEach((row, offset) => { const r = headerRow + 1 + offset; const rowText = row.textContent || ''; metric = timingNames.find(name => rowText.includes(name)) || metric; const alias = aliasNames.find(name => rowText.includes(name)); store = alias ? aliases[alias] : store; if (!metric) return; const unit = dayMetrics.includes(metric) ? 'D' : 'H'; const target = Object.prototype.hasOwnProperty.call(targets[metric], store) ? targets[metric][store] : targets[metric].default || '-'; const targetCell = grid[r]?.[targetIndex]; if (targetCell && targetCell.parentElement === row && isDataCell(targetCell)) targetCell.textContent = target; statIndexes.forEach(index => { const cell = grid[r]?.[index]; if (cell && cell.parentElement === row) format(cell, unit); }); }); const detailHeaders = ['日度均值', '月度均值']; if (detailHeaders.every(label => headers.includes(label))) { rows.slice(headerRow + 1).forEach(row => { const metricCell = Array.from(row.cells).find(cell => cell.textContent.trim() === '平均时效'); if (!metricCell) return; Array.from(row.cells).forEach(cell => { const match = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|D|小时|H)?$/i); if (!match || !match[2] || !/天|D/i.test(match[2])) return; const hours = Number(match[1]) * 24; cell.textContent = `${Number(hours.toFixed(4))}H`; }); }); } });
+    document.querySelectorAll('table').forEach(table => { const rows = Array.from(table.rows); const grid = makeGrid(table); const headerRow = rows.findIndex(row => Array.from(row.cells).some(cell => cell.tagName === 'TH' && cell.textContent.includes('目标值'))); if (headerRow < 0) return; const headers = grid[headerRow].map(cell => cell?.textContent.trim() || ''); const targetIndex = headers.findIndex(header => header.includes('目标值')); if (headers.includes('指标') && (headers.includes('日度均值') || headers.includes('月度均值'))) return; const statIndexes = headers.map((header, i) => ['当前平均值', '最大值', '上期值', '同期值'].includes(header) ? i : -1).filter(i => i >= 0); let metric = '', store = ''; rows.slice(headerRow + 1).forEach((row, offset) => { const r = headerRow + 1 + offset; const rowText = row.textContent || ''; metric = timingNames.find(name => rowText.includes(name)) || metric; const alias = aliasNames.find(name => rowText.includes(name)); store = alias ? aliases[alias] : store; if (!metric) return; const unit = dayMetrics.includes(metric) ? 'D' : 'H'; const target = Object.prototype.hasOwnProperty.call(targets[metric], store) ? targets[metric][store] : targets[metric].default || '-'; const targetCell = grid[r]?.[targetIndex]; if (targetCell && targetCell.parentElement === row && isDataCell(targetCell)) targetCell.textContent = target; statIndexes.forEach(index => { const cell = grid[r]?.[index]; if (cell && cell.parentElement === row) format(cell, unit); }); }); });
   };
   const flattenWarehouseOutboundDetail = () => {
     const data = {
       '酒水': [
-        ['平均时效', '12H', '0.51D', '0.51D', '0.5D', '0.51D', '0.52D', '0.5D', '0.51D', '0.52D', '0.5D', '0.51D'],
-        ['大于目标值的件数', '12H', '1774.09', '1774.09', '1441.96', '1661.92', '1576.38', '1970.24', '1746.52', '1551.94', '2016.3', '1808.56'],
+        ['平均时效', '10H', '0.51D', '0.51D', '0.5D', '0.51D', '0.52D', '0.5D', '0.51D', '0.52D', '0.5D', '0.51D'],
+        ['大于目标值的件数', '-', '1774.09', '1774.09', '1441.96', '1661.92', '1576.38', '1970.24', '1746.52', '1551.94', '2016.3', '1808.56'],
         ['总件数', '-', '13575.17', '13575.17', '11092', '12784', '12126', '14288', '13442', '11938', '15510', '13912'],
         ['达标率', '-', '87.72%', '87.72%', '87.78%', '87.78%', '87.78%', '87.03%', '87.78%', '87.78%', '87.78%', '87.78%']
       ],
       '香化': [
-        ['平均时效', '7H', '0.89D', '0.89D', '0.88D', '0.89D', '0.9D', '0.88D', '0.89D', '0.9D', '0.88D', '0.89D'],
-        ['大于目标值的件数', '7H', '3031.58', '3031.58', '2835.04', '2627.3', '3103.88', '2786.16', '3287.18', '3018.34', '2663.96', '3372.72'],
+        ['平均时效', '4H', '0.89D', '0.89D', '0.88D', '0.89D', '0.9D', '0.88D', '0.89D', '0.9D', '0.88D', '0.89D'],
+        ['大于目标值的件数', '-', '3031.58', '3031.58', '2835.04', '2627.3', '3103.88', '2786.16', '3287.18', '3018.34', '2663.96', '3372.72'],
         ['总件数', '-', '23319.83', '23319.83', '21808', '20210', '23876', '21432', '25286', '23218', '20492', '25944'],
         ['达标率', '-', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%']
       ]
@@ -1150,7 +1245,7 @@
     });
   };
   const run = () => {
-    [enhanceTrend, addControls, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeExclusionPanels, floatExclusionComparison, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, normalizeStoreStageNode, normalizeStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope, remove7063Notice, formatRequestedTimingTables, fixOverviewDecimals, forceTimingUnits].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
+    [enhanceTrend, addControls, mergeStoreWarehouseFilter, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeExclusionPanels, floatExclusionComparison, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, normalizeStoreStageNode, normalizeStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope, remove7063Notice, formatRequestedTimingTables, fixOverviewDecimals, forceTimingUnits, applyDetailTargets].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
   };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
