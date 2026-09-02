@@ -1270,8 +1270,11 @@
       const header = table.tHead?.rows?.[0];
       const labels = Array.from(header?.cells || []).map(cell => cell.textContent.trim());
       if (!header || labels[0] !== '门店' || !labels.includes('月度均值') || !labels.includes('1月')) return;
-      const section = table.closest('.mb-6') || table.parentElement;
-      const heading = Array.from(section?.querySelectorAll('h3,h4') || []).find(element => headings.some(name => element.textContent.includes(name)));
+      let section = table.parentElement;
+      let heading = null;
+      for (let depth = 0; section && depth < 6 && !heading; depth += 1, section = section.parentElement) {
+        heading = Array.from(section.querySelectorAll('h3,h4')).find(element => headings.some(name => element.textContent.includes(name)));
+      }
       if (!heading || table.dataset.storeStageMonthlyReady === 'true') return;
       heading.textContent = heading.textContent.replace(/（天）|\(天\)/g, '（D）');
       const format = cell => {
