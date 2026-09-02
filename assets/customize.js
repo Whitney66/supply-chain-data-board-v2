@@ -382,13 +382,13 @@
     const filterGroups = Array.from(document.querySelectorAll('main *')).filter(element => {
       if (element.children.length !== 3) return false;
       const [label, mode, selector] = Array.from(element.children);
-      return label.textContent.trim() === '门店' && mode.querySelectorAll('button').length === 3 && selector.tagName === 'BUTTON';
+      return label.textContent.trim() === '门店' && mode.querySelectorAll('button').length === 3 && selector.querySelector('button');
     });
     const storeGroup = filterGroups[0];
     const warehouseGroup = Array.from(document.querySelectorAll('main *')).find(element => {
       if (element.children.length !== 3) return false;
       const [label, mode, selector] = Array.from(element.children);
-      return label.textContent.trim() === '仓库' && mode.querySelectorAll('button').length === 3 && selector.tagName === 'BUTTON';
+      return label.textContent.trim() === '仓库' && mode.querySelectorAll('button').length === 3 && selector.querySelector('button');
     });
     if (!storeGroup || !warehouseGroup || storeGroup.dataset.storeWarehouseMerged === 'true') return;
     storeGroup.dataset.storeWarehouseMerged = 'true';
