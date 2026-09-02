@@ -1265,16 +1265,16 @@
     });
   };
   const normalizeStoreStageMonthlyTables = () => {
-    const headings = ['监管仓-周转仓调拨平均时效', '周转仓-卖场调拨平均时效'];
+    const storeStageTitle = Array.from(document.querySelectorAll('h3')).find(element => element.textContent.trim() === '门店段');
+    const storeStageRoot = storeStageTitle?.parentElement?.parentElement;
+    if (!storeStageRoot) return;
+    const headings = [];
     document.querySelectorAll('table').forEach(table => {
       const header = table.tHead?.rows?.[0];
       const labels = Array.from(header?.cells || []).map(cell => cell.textContent.trim());
       if (!header || labels[0] !== '门店' || !labels.includes('月度均值') || !labels.includes('1月')) return;
-      let section = table.parentElement;
-      let heading = null;
-      for (let depth = 0; section && depth < 6 && !heading; depth += 1, section = section.parentElement) {
-        heading = Array.from(section.querySelectorAll('h3,h4')).find(element => headings.some(name => element.textContent.includes(name)));
-      }
+      if (!storeStageRoot.contains(table)) return;
+      const heading = Array.from(storeStageRoot.querySelectorAll('h3,h4')).find(element => element !== storeStageTitle && /时效/.test(element.textContent));
       if (!heading || table.dataset.storeStageMonthlyReady === 'true') return;
       heading.textContent = heading.textContent.replace(/（天）|\(天\)/g, '（D）');
       const format = cell => {
@@ -1314,8 +1314,11 @@
         const detailCell = detail.insertCell();
         detailCell.colSpan = labels.length;
         detailCell.className = 'px-4 py-2 bg-blue-50';
-        const metricName = heading.textContent.replace(/（D）|\(D\)/g, '').trim();
+        const metricName = heading.textContent.replace(/（天）|\(天\)|（D）|\(D\)/g, '').trim();
         detailCell.innerHTML = `<div style="font-size:14px;font-weight:600;color:#1d4ed8;margin-bottom:8px;">${store} - 指标明细</div><table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff;"><thead><tr>${['门店', '品类', '指标', '目标值', '日度均值', '月度均值', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月'].map(label => `<th style="padding:6px;border:1px solid #e5e7eb;background:#fff4f4;">${label}</th>`).join('')}</tr></thead><tbody>${[['平均时效', row.cells[1]?.textContent || '-', ...Array.from(row.cells).slice(1).map(cell => cell.textContent.trim())], ['大于目标值的票数', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'], ['总票数', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'], ['达标率', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-']].map((values, rowIndex) => `<tr>${values.map((value, cellIndex) => `<td style="padding:6px;border:1px solid #e5e7eb;text-align:${cellIndex === 0 ? 'left' : 'center'};">${cellIndex === 0 ? store : cellIndex === 1 ? '-' : cellIndex === 2 ? values[0] : value}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+        const monthValues = Array.from(row.cells).slice(1).map(cell => cell.textContent.trim());
+        const detailRows = [['平均时效', '24H', '-', ...monthValues], ['大于目标值的票数', '-', '-', '-', '152', '152', '144', '150', '156', '162', '144', '150', '156'], ['总票数', '-', '-', '-', '1168', '1168', '1104', '1152', '1200', '1248', '1104', '1152', '1200'], ['达标率', '65.00%', '-', '-', '86.99%', '86.99%', '86.96%', '86.98%', '87.00%', '87.02%', '86.96%', '86.98%', '87.00%']];
+        detailCell.innerHTML = `<div style="font-size:14px;font-weight:600;color:#1d4ed8;margin-bottom:8px;">${store} - 指标明细</div><table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff;"><thead><tr>${['门店', '品类', '指标', '目标值', '日度均值', '月度均值', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月'].map(label => `<th style="padding:6px;border:1px solid #e5e7eb;background:#fff4f4;">${label}</th>`).join('')}</tr></thead><tbody>${detailRows.map((values, rowIndex) => `<tr>${rowIndex === 0 ? `<td rowspan="4" style="padding:6px;border:1px solid #e5e7eb;vertical-align:middle;">${store}</td><td rowspan="4" style="padding:6px;border:1px solid #e5e7eb;text-align:center;vertical-align:middle;">-</td>` : ''}<td style="padding:6px;border:1px solid #e5e7eb;">${values[0]}</td>${values.slice(1).map(value => `<td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${value}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
         row.addEventListener('click', () => { detail.hidden = !detail.hidden; row.classList.toggle('bg-blue-50', !detail.hidden); });
       });
       table.dataset.storeStageMonthlyReady = 'true';
