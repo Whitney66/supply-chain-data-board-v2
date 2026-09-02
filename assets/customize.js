@@ -437,9 +437,13 @@
     menu.style.width = '520px';
     menu.style.display = 'grid';
     menu.style.gridTemplateColumns = '240px 1fr';
+    const searchBox = menu.firstElementChild;
+    const storeList = menu.children[1];
+    if (searchBox) searchBox.style.gridColumn = '1';
+    if (storeList) storeList.style.gridColumn = '1';
     const warehousePanel = document.createElement('div');
     warehousePanel.dataset.storeWarehousePanel = 'true';
-    warehousePanel.style.cssText = 'border-left:1px solid #e5e7eb;max-height:320px;overflow-y:auto;padding:8px;';
+    warehousePanel.style.cssText = 'grid-column:2;grid-row:1 / span 2;border-left:1px solid #e5e7eb;max-height:320px;overflow-y:auto;padding:8px;';
     menu.appendChild(warehousePanel);
     const renderWarehouses = () => {
       const ids = selectedStoreIds(menu);
