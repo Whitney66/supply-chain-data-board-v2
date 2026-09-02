@@ -1,6 +1,141 @@
 (() => {
   const ticketRates = ['82.4%', '80.8%', '89.5%', '87.8%', '84.6%', '85.5%', '83.4%', '88.9%', '86.1%', '84.7%'];
   const getTables = () => Array.from(document.getElementsByTagName('table'));
+  const trendState = {
+    visible: null,
+    knownKeys: new Set(),
+    table: null,
+    trigger: null,
+    dialog: null,
+    selectedVisible: new Set(),
+    selectedHidden: new Set()
+  };
+  const trendColumnAliases = {
+    '业务节点': 'businessNode',
+    '指标名称': 'metric',
+    '具体指标': 'metric',
+    '门店': 'store',
+    '品类': 'category',
+    '目标值': 'target',
+    '当前平均值': 'current',
+    '最大值': 'maximum',
+    '票数达标率': 'ticket',
+    '件数达标率': 'piece',
+    '金额达标率': 'amount',
+    '上期值': 'previous',
+    '上月值': 'previous',
+    '环比': 'mom',
+    '同期值': 'samePeriod',
+    '同比': 'yoy'
+  };
+  const trendColumnKey = (label, index) => trendColumnAliases[label] || `column-${index}-${label}`;
+  const buildTableGrid = table => {
+    const grid = [];
+    Array.from(table.rows).forEach((row, rowIndex) => {
+      grid[rowIndex] ||= [];
+      let column = 0;
+      Array.from(row.cells).forEach(cell => {
+        while (grid[rowIndex][column]) column += 1;
+        const rowSpan = Math.max(1, cell.rowSpan || 1);
+        const colSpan = Math.max(1, cell.colSpan || 1);
+        for (let rowOffset = 0; rowOffset < rowSpan; rowOffset += 1) {
+          grid[rowIndex + rowOffset] ||= [];
+          for (let columnOffset = 0; columnOffset < colSpan; columnOffset += 1) {
+            grid[rowIndex + rowOffset][column + columnOffset] = cell;
+          }
+        }
+        column += colSpan;
+      });
+    });
+    return grid;
+  };
+  const trendHeaders = table => {
+    const row = table.tHead?.rows?.[0];
+    if (!row) return [];
+    return Array.from(row.cells).map((cell, index) => {
+      const label = cell.textContent.trim();
+      const labelKey = Object.keys(trendColumnAliases).find(name => label === name || label.startsWith(name));
+      const key = trendColumnKey(labelKey || label, index);
+      cell.dataset.trendColumn = key;
+      return { cell, label: labelKey || label, key, index };
+    });
+  };
+  const trendTables = () => getTables().filter(table => {
+    const text = table.tHead?.textContent || '';
+    return text.includes('指标名称') && text.includes('当前平均值') && text.includes('件数达标率');
+  });
+  const visibleTrendKeys = table => {
+    const headers = trendHeaders(table);
+    const available = new Set(headers.map(item => item.key));
+    if (!trendState.visible) trendState.visible = new Set(available);
+    return new Set(headers.filter(item => trendState.visible.has(item.key)).map(item => item.key));
+  };
+  const applyTrendColumnVisibility = table => {
+    const headers = trendHeaders(table);
+    if (!headers.length) return;
+    const visible = visibleTrendKeys(table);
+    const grid = buildTableGrid(table);
+    Array.from(table.rows).forEach((row, rowIndex) => {
+      if (row.querySelector('div.ring-violet-100')) return;
+      const cells = new Set(row.cells);
+      cells.forEach(cell => {
+        const logicalIndexes = [];
+        (grid[rowIndex] || []).forEach((candidate, index) => { if (candidate === cell) logicalIndexes.push(index); });
+        const shown = logicalIndexes.some(index => visible.has(headers[index]?.key));
+        if (shown) {
+          cell.hidden = false;
+          cell.style.removeProperty('display');
+        } else {
+          cell.hidden = true;
+          cell.style.setProperty('display', 'none', 'important');
+        }
+      });
+    });
+    table.dataset.trendVisibleColumns = JSON.stringify(Array.from(visible));
+  };
+  const refreshTrendColumnStyles = table => {
+    const headers = trendHeaders(table);
+    if (!headers.length) return;
+    const visible = visibleTrendKeys(table);
+    const grid = buildTableGrid(table);
+    const rows = Array.from(table.rows);
+    // Tone groups must cover every column of a block (including 最大值) so the
+    // background stays continuous once individual columns are hidden.
+    const tones = [
+      { keys: ['category', 'target', 'current', 'maximum', 'ticket', 'piece', 'amount'], color: '#fff8e6' },
+      { keys: ['previous', 'mom'], color: '#f2fae8' },
+      { keys: ['samePeriod', 'yoy'], color: '#eaf8ff' }
+    ];
+    rows.forEach((row, rowIndex) => {
+      if (row.querySelector('div.ring-violet-100')) return;
+      Array.from(row.cells).forEach(cell => {
+        cell.style.removeProperty('background-color');
+        cell.style.removeProperty('border-left');
+        cell.style.removeProperty('border-right');
+        // Drop the group divider rules entirely: they left dangling lines in the
+        // middle of the metric block whenever a column was hidden.
+        cell.classList.remove('border-r-2', 'border-l-2', 'border-gray-300', 'bg-amber-50', 'bg-amber-100');
+        const indexes = [];
+        (grid[rowIndex] || []).forEach((candidate, index) => { if (candidate === cell) indexes.push(index); });
+        const keys = indexes.map(index => headers[index]?.key).filter(Boolean);
+        const tone = tones.find(group => keys.some(key => group.keys.includes(key)));
+        if (tone && keys.some(key => visible.has(key))) cell.style.backgroundColor = tone.color;
+      });
+    });
+    applyTrendColumnVisibility(table);
+  };
+  const ensureTrendColumnState = table => {
+    const headers = trendHeaders(table);
+    if (!headers.length) return;
+    const available = new Set(headers.map(item => item.key));
+    if (!trendState.visible) trendState.visible = new Set(available);
+    else headers.forEach(item => {
+      if (!trendState.knownKeys.has(item.key)) trendState.visible.add(item.key);
+    });
+    available.forEach(key => trendState.knownKeys.add(key));
+    table.dataset.trendColumnStateReady = 'true';
+    refreshTrendColumnStyles(table);
+  };
   const enhanceTrend = () => {
     const table = getTables().find(t => {
       const text = t.querySelector('thead')?.textContent || '';
@@ -64,7 +199,7 @@
     const pieceIndex = updatedHeaders.findIndex(cell => cell.textContent.trim() === '件数达标率');
     if (pieceIndex >= 0) {
       updatedHeaders[pieceIndex].dataset.trendColumn = 'piece';
-      updatedHeaders[pieceIndex].classList.add('border-r-2', 'border-gray-300');
+      updatedHeaders[pieceIndex].classList.remove('border-r-2', 'border-l-2', 'border-gray-300');
     }
     Array.from(body.rows).forEach((row, index) => {
       if (!row.cells.length) return;
@@ -80,9 +215,9 @@
       const pieceCell = updatedCells[pieceIndex - rowOffset];
       if (pieceCell) {
         pieceCell.dataset.trendColumn = 'piece';
-        pieceCell.classList.add('border-r-2', 'border-gray-300');
+        pieceCell.classList.remove('border-r-2', 'border-l-2', 'border-gray-300');
         const nextCell = updatedCells[pieceIndex - rowOffset + 1];
-        if (nextCell) nextCell.classList.add('border-l-2', 'border-gray-300');
+        if (nextCell) nextCell.classList.remove('border-l-2', 'border-r-2', 'border-gray-300');
       }
     });
     const metricNames = logisticsCenterMetrics;
@@ -100,56 +235,148 @@
         if (duplicate) duplicate.remove();
       }
     });
-    const finalHeaders = Array.from(headerRow.cells);
-    const headerIndex = label => finalHeaders.findIndex(cell => cell.textContent.trim() === label);
-    const categoryStart = headerIndex('品类');
-    const categoryEnd = headerIndex('件数达标率');
-    const previousStart = Math.max(headerIndex('上期值'), headerIndex('上月值'));
-    const previousEnd = headerIndex('环比');
-    const samePeriodStart = headerIndex('同期值');
-    const samePeriodEnd = headerIndex('同比');
-    const columnTone = index => {
-      if (categoryStart >= 0 && index >= categoryStart && index <= categoryEnd) return '#fff8e6';
-      if (previousStart >= 0 && index >= previousStart && index <= previousEnd) return '#f2fae8';
-      if (samePeriodStart >= 0 && index >= samePeriodStart && index <= samePeriodEnd) return '#eaf8ff';
-      return '';
-    };
-    finalHeaders.forEach((cell, index) => {
-      const tone = columnTone(index);
-      if (tone) cell.style.backgroundColor = tone;
-    });
-    Array.from(body.rows).forEach(row => {
-      const cells = Array.from(row.cells);
-      const rowOffset = finalHeaders.length - cells.length;
-      finalHeaders.forEach((headerCell, logicalIndex) => {
-        const tone = columnTone(logicalIndex);
-        const cell = cells[logicalIndex - rowOffset];
-        if (tone && cell) cell.style.backgroundColor = tone;
-      });
-    });
     table.dataset.ticketRateReady = 'true';
+    ensureTrendColumnState(table);
+  };
+  const trendColumnLabel = item => item.label || item.key;
+  const trendColumnState = table => {
+    const headers = trendHeaders(table);
+    const visible = visibleTrendKeys(table);
+    return {
+      headers,
+      visible: headers.filter(item => visible.has(item.key)),
+      hidden: headers.filter(item => !visible.has(item.key))
+    };
+  };
+  const updateTrendDialog = () => {
+    const dialog = trendState.dialog;
+    const table = trendTables()[0] || trendState.table;
+    if (!dialog || !table) return;
+    trendState.table = table;
+    ensureTrendColumnState(table);
+    const state = trendColumnState(table);
+    const visibleList = dialog.querySelector('[data-trend-visible-list]');
+    const hiddenList = dialog.querySelector('[data-trend-hidden-list]');
+    const visibleCount = dialog.querySelector('[data-trend-visible-count]');
+    const hiddenCount = dialog.querySelector('[data-trend-hidden-count]');
+    if (!visibleList || !hiddenList) return;
+    const createItem = (item, selectedSet, side) => {
+      const label = document.createElement('label');
+      label.className = 'flex cursor-pointer items-center gap-3 border-b border-gray-100 px-3 py-3 text-sm text-gray-700 last:border-b-0 hover:bg-blue-50';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = selectedSet.has(item.key);
+      checkbox.className = 'h-4 w-4 accent-blue-600';
+      checkbox.onchange = () => {
+        if (checkbox.checked) selectedSet.add(item.key); else selectedSet.delete(item.key);
+        updateTrendDialog();
+      };
+      const text = document.createElement('span');
+      text.textContent = trendColumnLabel(item);
+      label.appendChild(checkbox);
+      label.appendChild(text);
+      label.dataset.trendDialogItem = item.key;
+      label.dataset.trendDialogSide = side;
+      return label;
+    };
+    visibleList.innerHTML = '';
+    hiddenList.innerHTML = '';
+    state.visible.forEach(item => visibleList.appendChild(createItem(item, trendState.selectedVisible, 'visible')));
+    state.hidden.forEach(item => hiddenList.appendChild(createItem(item, trendState.selectedHidden, 'hidden')));
+    if (!state.visible.length) {
+      const empty = document.createElement('div'); empty.className = 'px-3 py-8 text-center text-sm text-gray-400'; empty.textContent = '无数据显示'; visibleList.appendChild(empty);
+    }
+    if (!state.hidden.length) {
+      const empty = document.createElement('div'); empty.className = 'px-3 py-8 text-center text-sm text-gray-400'; empty.textContent = '无数据'; hiddenList.appendChild(empty);
+    }
+    if (visibleCount) visibleCount.textContent = `${state.visible.length}/${state.headers.length}`;
+    if (hiddenCount) hiddenCount.textContent = `${state.hidden.length}/${state.headers.length}`;
+    const visibleAll = dialog.querySelector('[data-trend-visible-all]');
+    const hiddenAll = dialog.querySelector('[data-trend-hidden-all]');
+    if (visibleAll) visibleAll.checked = state.visible.length > 0 && state.visible.length === state.headers.length;
+    if (hiddenAll) hiddenAll.checked = state.hidden.length > 0 && state.hidden.length === state.headers.length;
+  };
+  const moveTrendColumns = side => {
+    const table = trendTables()[0] || trendState.table;
+    if (!table) return;
+    ensureTrendColumnState(table);
+    const selected = side === 'visible' ? trendState.selectedVisible : trendState.selectedHidden;
+    selected.forEach(key => {
+      if (side === 'visible') trendState.visible.delete(key); else trendState.visible.add(key);
+    });
+    selected.clear();
+    refreshTrendColumnStyles(table);
+    updateTrendDialog();
+  };
+  const closeTrendDialog = () => {
+    if (!trendState.dialog) return;
+    trendState.dialog.remove();
+    trendState.dialog = null;
+    trendState.selectedVisible.clear();
+    trendState.selectedHidden.clear();
+    trendState.trigger?.setAttribute('aria-expanded', 'false');
+  };
+  const openTrendDialog = () => {
+    const table = trendTables()[0];
+    if (!table) return;
+    ensureTrendColumnState(table);
+    if (trendState.dialog) { closeTrendDialog(); return; }
+    trendState.table = table;
+    const backdrop = document.createElement('div');
+    backdrop.dataset.trendColumnDialog = 'true';
+    backdrop.style.cssText = 'position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:36px 20px;background:rgba(15,23,42,.22);';
+    const panel = document.createElement('section');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-labelledby', 'trend-column-dialog-title');
+    panel.style.cssText = 'width:min(1120px,100%);max-height:calc(100vh - 72px);overflow:auto;background:#fff;border:1px solid #dbe3ef;border-radius:10px;box-shadow:0 24px 70px rgba(15,23,42,.25);color:#111827;';
+    const header = document.createElement('div'); header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px;border-bottom:1px solid #e5e7eb;';
+    const heading = document.createElement('h2'); heading.id = 'trend-column-dialog-title'; heading.style.cssText = 'margin:0;font-size:24px;font-weight:600;'; heading.textContent = '显示/隐藏';
+    const close = document.createElement('button'); close.type = 'button'; close.setAttribute('aria-label', '关闭字段设置'); close.style.cssText = 'border:0;background:transparent;color:#9ca3af;font-size:28px;line-height:1;cursor:pointer;padding:2px 6px;'; close.textContent = '×'; close.onclick = closeTrendDialog;
+    header.append(heading, close);
+    const content = document.createElement('div'); content.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr);gap:24px;padding:20px 28px 28px;align-items:center;';
+    const makeColumn = (side, title, countAttr, allAttr, listAttr) => {
+      const box = document.createElement('div'); box.style.cssText = 'min-width:0;border:1px solid #dbe3ef;border-radius:8px;overflow:hidden;background:#fff;';
+      const top = document.createElement('div'); top.style.cssText = 'display:flex;align-items:center;gap:12px;padding:14px 16px;background:#f3f6fb;border-bottom:1px solid #dbe3ef;';
+      const all = document.createElement('input'); all.type = 'checkbox'; all.className = 'h-4 w-4 accent-blue-600'; all.dataset.trendAll = allAttr;
+      all.onchange = () => {
+        const state = trendColumnState(table); const list = side === 'visible' ? state.visible : state.hidden; const selected = side === 'visible' ? trendState.selectedVisible : trendState.selectedHidden;
+        selected.clear(); list.forEach(item => { if (all.checked) selected.add(item.key); }); updateTrendDialog();
+      };
+      const label = document.createElement('strong'); label.style.cssText = 'font-size:20px;font-weight:500;'; label.textContent = title;
+      const count = document.createElement('span'); count.dataset.trendVisibleCount = side === 'visible' ? 'true' : ''; count.dataset.trendHiddenCount = side === 'hidden' ? 'true' : ''; count.style.cssText = 'margin-left:auto;color:#9ca3af;font-size:16px;';
+      top.append(all, label, count);
+      const list = document.createElement('div'); list.dataset.trendVisibleList = side === 'visible' ? 'true' : ''; list.dataset.trendHiddenList = side === 'hidden' ? 'true' : ''; list.style.cssText = 'max-height:420px;overflow-y:auto;';
+      box.append(top, list); return box;
+    };
+    const visibleBox = makeColumn('visible', '显示', 'visible', 'visible', 'visible');
+    const hiddenBox = makeColumn('hidden', '隐藏', 'hidden', 'hidden', 'hidden');
+    const actions = document.createElement('div'); actions.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:18px;';
+    const makeMove = (direction, label, side) => { const button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-label', label); button.title = label; button.style.cssText = 'width:64px;height:64px;border:0;border-radius:50%;background:#7dbdf2;color:#fff;font-size:32px;line-height:1;cursor:pointer;'; button.textContent = direction; button.onclick = () => moveTrendColumns(side); return button; };
+    actions.append(makeMove('‹', '移入显示', 'hidden'), makeMove('›', '移入隐藏', 'visible'));
+    content.append(visibleBox, actions, hiddenBox);
+    panel.append(header, content); backdrop.appendChild(panel); document.body.appendChild(backdrop); trendState.dialog = backdrop;
+    backdrop.onclick = event => { if (event.target === backdrop) closeTrendDialog(); };
+    backdrop.onkeydown = event => { if (event.key === 'Escape') closeTrendDialog(); };
+    backdrop.tabIndex = -1; backdrop.focus();
+    trendState.trigger?.setAttribute('aria-expanded', 'true');
+    updateTrendDialog();
   };
   const addControls = () => {
     const title = Array.from(document.querySelectorAll('h3')).find(el => el.textContent.includes('时效变化趋势'));
-    if (!title || title.parentElement.querySelector('[data-trend-controls]')) return;
-    const wrap = document.createElement('div');
-    wrap.dataset.trendControls = 'true';
-    wrap.className = 'flex items-center gap-2 flex-wrap text-xs';
-    [['target', '目标值'], ['ticket', '票数达标率'], ['piece', '件数达标率']].forEach(([key, label]) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.setAttribute('aria-pressed', 'true');
-      button.className = 'px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium transition-all';
-      button.textContent = label;
-      button.onclick = () => {
-        const visible = button.getAttribute('aria-pressed') !== 'true';
-        button.setAttribute('aria-pressed', String(visible));
-        button.className = `px-3 py-1.5 rounded-lg font-medium transition-all ${visible ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`;
-        document.querySelectorAll(`[data-trend-column="${key}"]`).forEach(cell => { cell.hidden = !visible; });
-      };
-      wrap.appendChild(button);
-    });
-    title.parentElement.appendChild(wrap);
+    if (!title) return;
+    const table = trendTables()[0]; if (table) { trendState.table = table; ensureTrendColumnState(table); }
+    let trigger = title.querySelector('[data-trend-column-trigger]');
+    if (!trigger) {
+      trigger = document.createElement('button');
+      trigger.type = 'button'; trigger.dataset.trendColumnTrigger = 'true'; trigger.setAttribute('aria-label', '显示/隐藏字段'); trigger.setAttribute('aria-expanded', 'false'); trigger.title = '显示/隐藏字段';
+      trigger.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;gap:4px;height:26px;padding:0 8px;margin-left:8px;border:1px solid #bfdbfe;border-radius:6px;background:#eff6ff;color:#2563eb;font-size:12px;font-weight:600;line-height:1;cursor:pointer;';
+      trigger.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16"/><circle cx="9" cy="5" r="2" fill="#fff"/><circle cx="15" cy="12" r="2" fill="#fff"/><circle cx="9" cy="19" r="2" fill="#fff"/></svg><span>显示/隐藏</span>';
+      trigger.onclick = event => { event.preventDefault(); event.stopPropagation(); openTrendDialog(); };
+      title.appendChild(trigger);
+    }
+    trendState.trigger = trigger;
+    if (trendState.dialog) updateTrendDialog();
   };
   const hideRequestedMetrics = () => {
     const hidden = ['直入直出全链路平均时效（监管仓-卖场）', '监管仓/周转仓-预定仓全链路平均时效'];
@@ -374,27 +601,180 @@
       button.style.display = allowed ? '' : 'none';
     });
   };
+  // The prototype renders the 剔除前后 comparison as an extra <tr> inside the metric
+  // table, which shifts the layout and lets the table's own row styling bleed into
+  // the panel. Mirror it into a fixed overlay anchored to the button instead and
+  // keep the injected row out of the table flow.
+  const exclusionFloat = { html: '', anchor: null, listeners: false, style: false };
+  // React recycles the injected <tr> for ordinary metric rows, so inline styles set
+  // on it leak onto real data (hidden rows, mismatched背景色). Hide it with a rule
+  // that keys off the panel itself instead of touching any React-owned node.
+  const EXCLUSION_PANEL_SELECTOR = 'div.ring-violet-100';
+  const ensureExclusionStyle = () => {
+    if (exclusionFloat.style) return;
+    exclusionFloat.style = true;
+    const style = document.createElement('style');
+    style.dataset.exclusionFloatStyle = 'true';
+    style.textContent = `tr:has(> td > ${EXCLUSION_PANEL_SELECTOR}) { display: none !important; }`;
+    document.head.appendChild(style);
+  };
+  const exclusionPanelRow = panel => panel?.closest('tr') || null;
+  const findExclusionTrigger = () => Array.from(document.querySelectorAll('button')).find(button => (button.textContent || '').includes('收起对比'));
+  const positionExclusionFloat = () => {
+    const host = document.querySelector('[data-exclusion-float]');
+    const anchor = exclusionFloat.anchor;
+    if (!host || !anchor || !anchor.isConnected) return;
+    const rect = anchor.getBoundingClientRect();
+    const width = Math.min(860, window.innerWidth - 24);
+    host.style.width = `${width}px`;
+    const left = Math.min(Math.max(12, rect.left), Math.max(12, window.innerWidth - width - 12));
+    host.style.left = `${left}px`;
+    const height = host.offsetHeight || 320;
+    const below = rect.bottom + 8;
+    const top = below + height > window.innerHeight - 12 ? Math.max(12, rect.top - height - 8) : below;
+    host.style.top = `${top}px`;
+  };
+  const closeExclusionFloat = () => findExclusionTrigger()?.click();
+  const ensureExclusionListeners = () => {
+    if (exclusionFloat.listeners) return;
+    exclusionFloat.listeners = true;
+    document.addEventListener('mousedown', event => {
+      const host = document.querySelector('[data-exclusion-float]');
+      if (!host || host.contains(event.target)) return;
+      const button = event.target.closest?.('button');
+      if (button && /剔除前后|收起对比/.test(button.textContent || '')) return;
+      closeExclusionFloat();
+    }, true);
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') closeExclusionFloat(); });
+    window.addEventListener('scroll', positionExclusionFloat, true);
+    window.addEventListener('resize', positionExclusionFloat);
+  };
+  const floatExclusionComparison = () => {
+    ensureExclusionListeners();
+    ensureExclusionStyle();
+    // Heal any row that was hidden while it still held the panel and has since been
+    // recycled by React for real data.
+    document.querySelectorAll('tr[data-exclusion-source="true"]').forEach(row => {
+      if (row.querySelector(EXCLUSION_PANEL_SELECTOR)) return;
+      row.style.removeProperty('display');
+      delete row.dataset.exclusionSource;
+    });
+    const trigger = findExclusionTrigger();
+    const panel = document.querySelector(`tr > td > ${EXCLUSION_PANEL_SELECTOR}`);
+    const sourceRow = exclusionPanelRow(panel);
+    let host = document.querySelector('[data-exclusion-float]');
+    if (!trigger || !panel || !sourceRow) {
+      host?.remove();
+      exclusionFloat.html = '';
+      exclusionFloat.anchor = null;
+      return;
+    }
+    sourceRow.dataset.exclusionSource = 'true';
+    exclusionFloat.anchor = trigger;
+    if (!host) {
+      host = document.createElement('div');
+      host.dataset.exclusionFloat = 'true';
+      host.style.cssText = 'position:fixed;z-index:2147483000;max-height:72vh;overflow:auto;border-radius:10px;border:1px solid #c4b5fd;background:#fff;box-shadow:0 24px 60px rgba(15,23,42,.3);';
+      document.body.appendChild(host);
+      exclusionFloat.html = '';
+    }
+    const html = panel.innerHTML;
+    if (exclusionFloat.html !== html) {
+      exclusionFloat.html = html;
+      const clone = panel.cloneNode(true);
+      clone.style.border = '0';
+      clone.style.borderRadius = '0';
+      clone.style.boxShadow = 'none';
+      // The clone is detached from React, so route its actions back to the live nodes.
+      const liveButtons = Array.from(panel.querySelectorAll('button'));
+      Array.from(clone.querySelectorAll('button')).forEach((button, index) => {
+        button.onclick = event => { event.preventDefault(); liveButtons[index]?.click(); };
+      });
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.setAttribute('aria-label', '关闭剔除前后对比');
+      close.style.cssText = 'border:0;background:transparent;color:#6d28d9;font-size:20px;line-height:1;cursor:pointer;padding:0 4px;';
+      close.textContent = '×';
+      close.onclick = closeExclusionFloat;
+      host.innerHTML = '';
+      host.style.position = 'fixed';
+      // A sticky bar of its own, not an absolute overlay: the panel header already
+      // carries 收起对比/下载当前指标 at the top-right, and an overlaid × covered them.
+      const bar = document.createElement('div');
+      bar.style.cssText = 'position:sticky;top:0;z-index:2;display:flex;justify-content:flex-end;align-items:center;height:26px;padding:0 8px;background:#f5f3ff;border-bottom:1px solid #ede9fe;';
+      bar.appendChild(close);
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:relative;';
+      wrap.append(bar, clone);
+      host.appendChild(wrap);
+    }
+    positionExclusionFloat();
+  };
+  // Targets mirror《20260828门店映射关系表+目标值维护V2》sheet 目标值维护 (column
+  // 2026年目标值). Metrics left blank there keep the '-' placeholder.
+  const TIMING_TARGETS = { '全链路订货平均时效（一盘货）': { '香化仓': '14D', '酒水仓': '7D' }, '一线通关平均时效': { default: '72H' }, '提货至海综保平均时效': { default: '2.5D' }, '仓库入库平均时效': { '香化仓': '8H', '酒水仓': '4H' }, '全链路入库平均时效（直发）': {}, '全链路分货平均时效': {}, '仓库出库平均时效': { '香化仓': '7H', '酒水仓': '12H' }, '二线通关平均时效': { '香化仓': '3H', '酒水仓': '7H' }, '门店提货至上架平均时效': { default: '4H' }, '监管仓-周转仓调拨平均时效': { default: '24H', '美兰店': '-' }, '周转仓-卖场调拨平均时效': {}, '全链路分拣仓入库平均时效': {}, '邮寄全链路平均时效': {}, '配送全链路平均时效': {}, '监管仓/周转仓-预定仓全链路平均时效': {}, '预定仓邮寄全链路平均时效': {}, '预定仓配送全链路平均时效': {} };
+  const TIMING_ALIASES = { '香化': '香化仓', '香化仓': '香化仓', '酒水': '酒水仓', '酒水仓': '酒水仓' };
+  const targetUnitOf = target => (/D$/i.test(target) ? 'D' : /H$/i.test(target) ? 'H' : null);
+  // The 剔除前后 panel is a nested table inside a colspan cell, so the main target
+  // pass skips it deliberately. Normalize it here against the same Excel map, or its
+  // 目标值 keeps the raw 0.33D/0.17D values the prototype ships with.
+  const normalizeExclusionPanels = () => {
+    const names = Object.keys(TIMING_TARGETS).sort((a, b) => b.length - a.length);
+    document.querySelectorAll('div.ring-violet-100').forEach(panel => {
+      const metric = names.find(name => (panel.textContent || '').includes(name));
+      const table = panel.querySelector('table');
+      const head = table?.tHead?.rows?.[0];
+      if (!metric || !head) return;
+      const labels = Array.from(head.cells).map(cell => cell.textContent.trim());
+      const targetIndex = labels.findIndex(label => label.includes('目标值'));
+      const catIndex = labels.findIndex(label => label.includes('品类'));
+      if (targetIndex < 0) return;
+      const map = TIMING_TARGETS[metric] || {};
+      Array.from(table.tBodies || []).forEach(body => Array.from(body.rows).forEach(row => {
+        const raw = (row.cells[catIndex]?.textContent || '').trim();
+        const key = TIMING_ALIASES[raw] || raw;
+        const target = Object.prototype.hasOwnProperty.call(map, key) ? map[key] : map.default || '-';
+        const targetCell = row.cells[targetIndex];
+        if (targetCell && targetCell.textContent.trim() !== target) targetCell.textContent = target;
+        const unit = targetUnitOf(target);
+        if (!unit) return;
+        Array.from(row.cells).forEach((cell, index) => {
+          if (index === targetIndex || index === catIndex) return;
+          const match = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|小时|D|H)$/i);
+          if (!match) return;
+          let value = Number(match[1]);
+          const source = /天|D/i.test(match[2]) ? 'D' : 'H';
+          if (source !== unit) value = source === 'D' ? value * 24 : value / 24;
+          const next = `${Number(value.toFixed(2))}${unit}`;
+          if (cell.textContent.trim() !== next) cell.textContent = next;
+        });
+      }));
+    });
+  };
   const normalizeTimingTargetUnits = () => {
     const dayMetrics = ['全链路订货平均时效（一盘货）', '提货至海综保平均时效'];
-    const targets = { '全链路订货平均时效（一盘货）': { '香化仓': '11D', '酒水仓': '7D' }, '一线通关平均时效': { default: '72H' }, '提货至海综保平均时效': { default: '2.5D' }, '仓库入库平均时效': { '香化仓': '5.5H', '酒水仓': '3H' }, '全链路入库平均时效（直发）': {}, '全链路分货平均时效': {}, '仓库出库平均时效': { '香化仓': '4H', '酒水仓': '10H' }, '二线通关平均时效': { '香化仓': '1.5H', '酒水仓': '7H' }, '门店提货至上架平均时效': { default: '4H' }, '监管仓-周转仓调拨平均时效': { default: '24H', '美兰店': '-' }, '周转仓-卖场调拨平均时效': {}, '全链路分拣仓入库平均时效': {}, '邮寄全链路平均时效': {}, '配送全链路平均时效': {}, '监管仓/周转仓-预定仓全链路平均时效': {}, '预定仓邮寄全链路平均时效': {}, '预定仓配送全链路平均时效': {} };
+    const targets = TIMING_TARGETS;
     const timingNames = Object.keys(targets).sort((a, b) => b.length - a.length);
     const aliases = { '香化仓': '香化仓', '香化': '香化仓', '酒水仓': '酒水仓', '酒水': '酒水仓', '一盘货': '一盘货', '三亚店': '三亚店', '新海港店': '新海港店', '日月店': '日月店', '美兰店': '美兰店', '博鳌店': '博鳌店', '凤凰机场店': '凤凰机场店', '全岛整体': '全岛整体', '整体': '整体' };
     const aliasNames = ['香化仓', '酒水仓', '香化', '酒水', '三亚店', '新海港店', '日月店', '美兰店', '博鳌店', '凤凰机场店', '全岛整体', '整体', '一盘货'];
-    const format = (cell, unit) => { const m = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|小时|H|D)?$/i); if (!m) return; let value = Number(m[1]); const source = /天|D/i.test(m[2] || '') ? 'D' : /小时|H/i.test(m[2] || '') ? 'H' : unit; if (source !== unit) value = source === 'D' ? value * 24 : value / 24; cell.textContent = `${Number(value.toFixed(4))}${unit}`; };
+    // Full-width cells carry injected panels (剔除前后对比) rather than a metric value.
+    // Writing into them destroys the panel, so leave them alone.
+    const isDataCell = cell => cell && (cell.colSpan || 1) === 1 && !cell.querySelector('table');
+    const format = (cell, unit) => { if (!isDataCell(cell)) return; const m = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|小时|H|D)?$/i); if (!m) return; let value = Number(m[1]); const source = /天|D/i.test(m[2] || '') ? 'D' : /小时|H/i.test(m[2] || '') ? 'H' : unit; if (source !== unit) value = source === 'D' ? value * 24 : value / 24; cell.textContent = `${Number(value.toFixed(4))}${unit}`; };
     const makeGrid = table => { const grid = []; Array.from(table.rows).forEach((row, r) => { grid[r] ||= []; let c = 0; Array.from(row.cells).forEach(cell => { while (grid[r][c]) c += 1; for (let rr = r; rr < r + Math.max(1, cell.rowSpan); rr += 1) { grid[rr] ||= []; for (let cc = c; cc < c + Math.max(1, cell.colSpan); cc += 1) grid[rr][cc] = cell; } c += Math.max(1, cell.colSpan); }); }); return grid; };
-    document.querySelectorAll('table').forEach(table => { const rows = Array.from(table.rows); const grid = makeGrid(table); const headerRow = rows.findIndex(row => Array.from(row.cells).some(cell => cell.tagName === 'TH' && cell.textContent.includes('目标值'))); if (headerRow < 0) return; const headers = grid[headerRow].map(cell => cell?.textContent.trim() || ''); const targetIndex = headers.findIndex(header => header.includes('目标值')); const statIndexes = headers.map((header, i) => ['当前平均值', '最大值', '上期值', '同期值'].includes(header) ? i : -1).filter(i => i >= 0); let metric = '', store = ''; rows.slice(headerRow + 1).forEach((row, offset) => { const r = headerRow + 1 + offset; const rowText = row.textContent || ''; metric = timingNames.find(name => rowText.includes(name)) || metric; const alias = aliasNames.find(name => rowText.includes(name)); store = alias ? aliases[alias] : store; if (!metric) return; const unit = dayMetrics.includes(metric) ? 'D' : 'H'; const target = Object.prototype.hasOwnProperty.call(targets[metric], store) ? targets[metric][store] : targets[metric].default || '-'; const targetCell = grid[r]?.[targetIndex]; if (targetCell && targetCell.parentElement === row) targetCell.textContent = target; statIndexes.forEach(index => { const cell = grid[r]?.[index]; if (cell && cell.parentElement === row) format(cell, unit); }); }); const detailHeaders = ['日度均值', '月度均值']; if (detailHeaders.every(label => headers.includes(label))) { rows.slice(headerRow + 1).forEach(row => { const metricCell = Array.from(row.cells).find(cell => cell.textContent.trim() === '平均时效'); if (!metricCell) return; Array.from(row.cells).forEach(cell => { const match = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|D|小时|H)?$/i); if (!match || !match[2] || !/天|D/i.test(match[2])) return; const hours = Number(match[1]) * 24; cell.textContent = `${Number(hours.toFixed(4))}H`; }); }); } });
+    document.querySelectorAll('table').forEach(table => { const rows = Array.from(table.rows); const grid = makeGrid(table); const headerRow = rows.findIndex(row => Array.from(row.cells).some(cell => cell.tagName === 'TH' && cell.textContent.includes('目标值'))); if (headerRow < 0) return; const headers = grid[headerRow].map(cell => cell?.textContent.trim() || ''); const targetIndex = headers.findIndex(header => header.includes('目标值')); const statIndexes = headers.map((header, i) => ['当前平均值', '最大值', '上期值', '同期值'].includes(header) ? i : -1).filter(i => i >= 0); let metric = '', store = ''; rows.slice(headerRow + 1).forEach((row, offset) => { const r = headerRow + 1 + offset; const rowText = row.textContent || ''; metric = timingNames.find(name => rowText.includes(name)) || metric; const alias = aliasNames.find(name => rowText.includes(name)); store = alias ? aliases[alias] : store; if (!metric) return; const unit = dayMetrics.includes(metric) ? 'D' : 'H'; const target = Object.prototype.hasOwnProperty.call(targets[metric], store) ? targets[metric][store] : targets[metric].default || '-'; const targetCell = grid[r]?.[targetIndex]; if (targetCell && targetCell.parentElement === row && isDataCell(targetCell)) targetCell.textContent = target; statIndexes.forEach(index => { const cell = grid[r]?.[index]; if (cell && cell.parentElement === row) format(cell, unit); }); }); const detailHeaders = ['日度均值', '月度均值']; if (detailHeaders.every(label => headers.includes(label))) { rows.slice(headerRow + 1).forEach(row => { const metricCell = Array.from(row.cells).find(cell => cell.textContent.trim() === '平均时效'); if (!metricCell) return; Array.from(row.cells).forEach(cell => { const match = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|D|小时|H)?$/i); if (!match || !match[2] || !/天|D/i.test(match[2])) return; const hours = Number(match[1]) * 24; cell.textContent = `${Number(hours.toFixed(4))}H`; }); }); } });
   };
   const flattenWarehouseOutboundDetail = () => {
     const data = {
       '酒水': [
-        ['平均时效', '0.5D', '0.51D', '0.51D', '0.5D', '0.51D', '0.52D', '0.5D', '0.51D', '0.52D', '0.5D', '0.51D'],
-        ['大于目标值的件数', '0.5D', '1774.09', '1774.09', '1441.96', '1661.92', '1576.38', '1970.24', '1746.52', '1551.94', '2016.3', '1808.56'],
+        ['平均时效', '12H', '0.51D', '0.51D', '0.5D', '0.51D', '0.52D', '0.5D', '0.51D', '0.52D', '0.5D', '0.51D'],
+        ['大于目标值的件数', '12H', '1774.09', '1774.09', '1441.96', '1661.92', '1576.38', '1970.24', '1746.52', '1551.94', '2016.3', '1808.56'],
         ['总件数', '-', '13575.17', '13575.17', '11092', '12784', '12126', '14288', '13442', '11938', '15510', '13912'],
         ['达标率', '-', '87.72%', '87.72%', '87.78%', '87.78%', '87.78%', '87.03%', '87.78%', '87.78%', '87.78%', '87.78%']
       ],
       '香化': [
-        ['平均时效', '0.875D', '0.89D', '0.89D', '0.88D', '0.89D', '0.9D', '0.88D', '0.89D', '0.9D', '0.88D', '0.89D'],
-        ['大于目标值的件数', '0.875D', '3031.58', '3031.58', '2835.04', '2627.3', '3103.88', '2786.16', '3287.18', '3018.34', '2663.96', '3372.72'],
+        ['平均时效', '7H', '0.89D', '0.89D', '0.88D', '0.89D', '0.9D', '0.88D', '0.89D', '0.9D', '0.88D', '0.89D'],
+        ['大于目标值的件数', '7H', '3031.58', '3031.58', '2835.04', '2627.3', '3103.88', '2786.16', '3287.18', '3018.34', '2663.96', '3372.72'],
         ['总件数', '-', '23319.83', '23319.83', '21808', '20210', '23876', '21432', '25286', '23218', '20492', '25944'],
         ['达标率', '-', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%', '87.78%']
       ]
@@ -640,35 +1020,7 @@
     });
   };
   const applyRequestedStoreTables = () => {
-    const locateHeading = name => Array.from(document.querySelectorAll('h3,h4,div,p')).find(el => el.children.length === 0 && el.textContent.trim().includes(name));
-    const pickupHeading = locateHeading('门店提货至上架平均时效');
-    const pickupTable = pickupHeading?.parentElement?.querySelector('table') || pickupHeading?.nextElementSibling?.querySelector('table');
-    if (pickupTable && !pickupTable.dataset.requestedStoreReady) {
-      const head = pickupTable.tHead?.rows?.[0]; const body = pickupTable.tBodies?.[0];
-      if (head && body) {
-        const labels = Array.from(head.cells).map(c => c.textContent.trim());
-        const store = labels.indexOf('门店'); const monthly = labels.indexOf('月度均值');
-        if (store >= 0 && monthly >= 0) {
-          const original = Array.from(body.rows);
-          head.innerHTML = ''; ['门店','品类','目标值','日度均值','月度均值'].forEach(text => { const th = document.createElement('th'); th.className = 'px-3 py-2 text-center'; th.textContent = text; head.appendChild(th); });
-          body.innerHTML = '';
-          original.forEach((old, index) => { const name = old.cells[store]?.textContent.trim() || (index ? '门店明细' : '整体'); const value = old.cells[monthly]?.textContent.trim() || '-'; const row = body.insertRow(); [name, '门店提货至上架', '-', value, value].forEach(text => { const td = row.insertCell(); td.className = 'px-3 py-2 text-center'; td.textContent = text; }); });
-          pickupTable.dataset.requestedStoreReady = 'true';
-        }
-      }
-    }
-    const stageTab = Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === '门店段' && /purple|blue|indigo|text-white|scale-105/.test(button.className));
-    if (!stageTab) return;
-    const stageRoot = stageTab.closest('section') || stageTab.parentElement?.parentElement;
-    stageRoot?.querySelectorAll('table').forEach(table => {
-      if (table.dataset.requestedStageReady || !table.offsetParent) return;
-      const head = table.tHead?.rows?.[0]; const body = table.tBodies?.[0];
-      if (!head || !body || !head.textContent.includes('门店')) return;
-      const labels = Array.from(head.cells).map(c => c.textContent.trim()); const store = labels.indexOf('门店'); const monthly = labels.indexOf('月度均值');
-      if (store < 0 || monthly < 0) return;
-      const original = Array.from(body.rows); head.innerHTML = ''; ['门店','品类','目标值','日度均值','月度均值'].forEach(text => { const th=document.createElement('th'); th.className='px-3 py-2 text-center'; th.textContent=text; head.appendChild(th); }); body.innerHTML='';
-      original.forEach((old,index) => { const name=old.cells[store]?.textContent.trim() || (index?'门店明细':'整体'); const value=old.cells[monthly]?.textContent.trim() || '-'; const row=body.insertRow(); [name,'门店段指标','-',value,value].forEach(text=>{const td=row.insertCell();td.className='px-3 py-2 text-center';td.textContent=text;}); }); table.dataset.requestedStageReady='true';
-    });
+    // Keep the original 门店段 table structure. The custom rewrite below was causing the table to deviate from the reference design.
   };
   const normalizeStorePickupTables = () => {
     document.querySelectorAll('table').forEach(table => {
@@ -739,56 +1091,43 @@
     });
   };
   const rebuildStoreStageTables = () => {
-    const stageTab = Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === '门店段' && !button.disabled);
-    if (!stageTab) return;
-    // The active tab is purple in the current prototype, not blue.
-    const active = stageTab.getAttribute('aria-selected') === 'true' || /blue|purple|indigo|scale-105/.test(stageTab.className) || stageTab.className.includes('text-white');
-    if (!active) return;
-    const heading = Array.from(document.querySelectorAll('h2,h3,h4')).find(el => el.textContent.trim() === '门店段');
-    const root = heading?.parentElement?.parentElement || stageTab.parentElement?.parentElement;
-    if (!root) return;
-    root.querySelectorAll('table').forEach(table => {
-      if (table.dataset.storeStageRebuilt === 'true') return;
-      const header = table.tHead?.rows?.[0]; const body = table.tBodies?.[0];
-      if (!header || !body || !header.textContent.includes('门店')) return;
-      const cells = Array.from(header.cells); const storeIndex = cells.findIndex(cell => cell.textContent.trim() === '门店');
-      const monthIndex = cells.findIndex(cell => cell.textContent.trim() === '月度均值');
-      if (storeIndex < 0 || monthIndex < 0) return;
-      const originalRows = Array.from(body.rows).filter(row => row.cells.length);
-      const stores = originalRows.map(row => row.cells[storeIndex]?.textContent.trim()).filter(Boolean);
-      if (!stores.length) return;
-      const average = originalRows[0].cells[monthIndex]?.textContent.trim() || '-';
-      const category = table.closest('section')?.querySelector('h4, h3')?.textContent.trim() || '门店段';
-      header.innerHTML = '';
-      ['门店', '品类', '目标值', '日度均值', '月度均值'].forEach(label => { const th = document.createElement('th'); th.className = 'px-3 py-2 text-center'; th.textContent = label; header.appendChild(th); });
-      body.innerHTML = '';
-      const overall = body.insertRow(); overall.className = 'cursor-pointer bg-blue-50'; overall.title = '点击查看拆分后的明细指标';
-      [stores[0] || '整体', category, '-', average, average].forEach(value => { const td = overall.insertCell(); td.className = 'px-3 py-2 text-center'; td.textContent = value; });
-      const detailRows = stores.map((store, index) => { const row = body.insertRow(); row.hidden = true; row.className = 'store-stage-detail'; [store, `${category}（${index % 2 ? '明细' : '分项'}）`, '-', average, average].forEach(value => { const td = row.insertCell(); td.className = 'px-3 py-2 text-center'; td.textContent = value; }); return row; });
-      overall.addEventListener('click', () => { const expanded = overall.getAttribute('aria-expanded') === 'true'; overall.setAttribute('aria-expanded', String(!expanded)); detailRows.forEach(row => { row.hidden = expanded; }); });
-      overall.setAttribute('aria-expanded', 'false');
-      table.dataset.storeStageRebuilt = 'true';
-    });
+    // Keep the original 门店段 detail table and do not rewrite its layout here.
+    // This preserves the reference style used in the design mockup.
+  };
+  // Each metric carries its own unit in《目标值维护》(72H, 14D, 8H …), so the unit has
+  // to be resolved per row from that row's 目标值 cell. Forcing one unit per table used
+  // to rewrite 72H as 3D in the mixed-metric trend table.
+  const rowTimingUnit = (grid, rowIndex, targetIndex) => {
+    const cell = grid[rowIndex]?.[targetIndex];
+    const match = (cell?.textContent || '').match(/(天|小时|D|H)/i);
+    if (!match) return null;
+    return /天|D/i.test(match[1]) ? 'D' : 'H';
+  };
+  const applyRowTimingUnits = (table, convert) => {
+    const head = table.tHead?.rows?.[0];
+    if (!head) return;
+    const targetIndex = Array.from(head.cells).map(cell => cell.textContent.trim()).findIndex(label => label.includes('目标值'));
+    if (targetIndex < 0) return;
+    const grid = buildTableGrid(table);
+    const rows = Array.from(table.rows);
+    Array.from(table.tBodies || []).forEach(body => Array.from(body.rows).forEach(row => {
+      const unit = rowTimingUnit(grid, rows.indexOf(row), targetIndex);
+      if (!unit) return;
+      Array.from(row.cells).forEach(cell => convert(cell, unit));
+    }));
   };
   const forceTimingUnits = () => {
-    const parse = text => text.trim().match(/^(-?\\d+(?:\\.\\d+)?)(天|小时|D|H)$/i);
-    const convert = (cell, unit) => { const match = parse(cell.textContent); if (!match) return; let value = Number(match[1]); const source = /天|D/i.test(match[2]) ? 'D' : 'H'; if (source !== unit) value = source === 'D' ? value * 24 : value / 24; cell.textContent = `${Number(value.toFixed(2))}${unit}`; };
+    const parse = text => text.trim().match(/^(-?\d+(?:\.\d+)?)(天|小时|D|H)$/i);
+    const convert = (cell, unit) => { if ((cell.colSpan || 1) > 1 || cell.querySelector('table')) return; const match = parse(cell.textContent); if (!match) return; let value = Number(match[1]); const source = /天|D/i.test(match[2]) ? 'D' : 'H'; if (source !== unit) value = source === 'D' ? value * 24 : value / 24; cell.textContent = `${Number(value.toFixed(2))}${unit}`; };
     const roots = Array.from(document.querySelectorAll('h2,h3,h4')).filter(el => /指标明细|门店段/.test(el.textContent)).map(el => el.parentElement?.parentElement || el.parentElement).filter(Boolean);
-    roots.forEach(root => root.querySelectorAll('table').forEach(table => {
-      const cells = Array.from(table.querySelectorAll('td')); const targetCells = cells.filter(cell => /目标值/.test(table.tHead?.textContent || '') && parse(cell.textContent));
-      const target = targetCells.find(cell => parse(cell.textContent)); if (!target) return;
-      const unit = /天|D/i.test(target.textContent) ? 'D' : 'H';
-      cells.forEach(cell => convert(cell, unit));
-    }));
+    roots.forEach(root => root.querySelectorAll('table').forEach(table => applyRowTimingUnits(table, convert)));
   };
   const formatRequestedTimingTables = () => {
     document.querySelectorAll('table').forEach(table => {
       const text = table.textContent || ''; if (!text.includes('门店提货至上架平均时效') && !text.includes('门店段')) return;
       const head = table.tHead?.rows?.[0]; const body = table.tBodies?.[0]; if (!head || !body) return;
-      const labels = Array.from(head.cells).map(c => c.textContent.trim()); const target = labels.findIndex(x => x.includes('目标值')); if (target < 0) return;
-      const targetCell = Array.from(body.rows).map(r => r.cells[target]).find(c => c && /(?:D|H|天|小时)/i.test(c.textContent)); if (!targetCell) return;
-      const unit = /天|D/i.test(targetCell.textContent) ? 'D' : 'H';
-      Array.from(body.rows).forEach(row => Array.from(row.cells).forEach(cell => { const m=cell.textContent.trim().match(/^(\d+(?:\.\d+)?)(天|D|小时|H)$/i); if(!m) return; let v=Number(m[1]); const source=/天|D/i.test(m[2])?'D':'H'; if(source!==unit)v=source==='D'?v*24:v/24; cell.textContent=`${Number(v.toFixed(4))}${unit}`; }));
+      const convert = (cell, unit) => { if ((cell.colSpan || 1) > 1 || cell.querySelector('table')) return; const m = cell.textContent.trim().match(/^(\d+(?:\.\d+)?)(天|D|小时|H)$/i); if (!m) return; let v = Number(m[1]); const source = /天|D/i.test(m[2]) ? 'D' : 'H'; if (source !== unit) v = source === 'D' ? v * 24 : v / 24; cell.textContent = `${Number(v.toFixed(4))}${unit}`; };
+      applyRowTimingUnits(table, convert);
     });
   };
   // Leave the application table layout and click behavior intact.
@@ -811,7 +1150,7 @@
     });
   };
   const run = () => {
-    [enhanceTrend, addControls, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, rebuildStoreStageTables, enhanceStoreStageMetrics, normalizeStoreStageNode, normalizeStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope, remove7063Notice, formatRequestedTimingTables, fixOverviewDecimals, forceTimingUnits].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
+    [enhanceTrend, addControls, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeExclusionPanels, floatExclusionComparison, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, normalizeStoreStageNode, normalizeStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope, remove7063Notice, formatRequestedTimingTables, fixOverviewDecimals, forceTimingUnits].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
   };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
