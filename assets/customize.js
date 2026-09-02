@@ -384,6 +384,21 @@
     const [label, mode, selector] = Array.from(element.children);
     return label.textContent.trim() === labelText && mode.querySelectorAll('button').length === 3 && selector.querySelector('button');
   });
+  const splitStoreOptions = menu => {
+    const labels = Array.from(menu.querySelectorAll('label')).filter(label => label.querySelector('input'));
+    const update = (label, text) => { const name = label.querySelector('span'); if (name) name.textContent = text; };
+    const haitang = labels.find(label => label.textContent.includes('6868'));
+    const xinhai = labels.find(label => label.textContent.includes('7048'));
+    if (haitang) update(haitang, '海棠湾店【6868、6867】');
+    if (xinhai) update(xinhai, '新海港店【7048】');
+    if (haitang && !menu.querySelector('[data-split-store="7018"]')) {
+      const ecommerce = haitang.cloneNode(true);
+      ecommerce.dataset.splitStore = '7018';
+      update(ecommerce, '海南电商离岛免税【7018】');
+      ecommerce.querySelector('input').checked = false;
+      haitang.after(ecommerce);
+    }
+  };
   const captureWarehouses = warehouseGroup => {
     if (cascadeState.captureStarted) return;
     cascadeState.captureStarted = true;
@@ -416,6 +431,7 @@
     const selector = storeGroup.lastElementChild;
     const menu = selector?.querySelector('.absolute');
     if (!menu) return;
+    splitStoreOptions(menu);
     if (menu.dataset.storeWarehouseCascade === 'true') { menu._renderWarehouses?.(); return; }
     menu.dataset.storeWarehouseCascade = 'true';
     menu.style.width = '520px';
@@ -427,8 +443,9 @@
     menu.appendChild(warehousePanel);
     const renderWarehouses = () => {
       const ids = selectedStoreIds(menu);
-      const options = ids.length ? cascadeState.warehouses.filter(item => item.ids.some(id => ids.includes(id.slice(0, 4)))) : cascadeState.warehouses;
-      warehousePanel.innerHTML = `<div style="padding:4px 8px 8px;color:#6b7280;font-size:12px;">${ids.length ? '对应仓库（可多选）' : '请选择门店查看仓库'}</div>`;
+      const selectedIds = [...new Set([...ids, ...(menu.querySelector('[data-split-store="7018"] input:checked') ? ['7018'] : [])])];
+      const options = selectedIds.length ? cascadeState.warehouses.filter(item => item.ids.some(id => selectedIds.includes(id.slice(0, 4)))) : cascadeState.warehouses;
+      warehousePanel.innerHTML = `<div style="padding:4px 8px 8px;color:#6b7280;font-size:12px;">${selectedIds.length ? '对应仓库（可多选）' : '请选择门店查看仓库'}</div>`;
       options.forEach(warehouse => {
         const label = document.createElement('label');
         label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px;cursor:pointer;font-size:14px;color:#374151;';
