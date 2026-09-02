@@ -378,21 +378,77 @@
     trendState.trigger = trigger;
     if (trendState.dialog) updateTrendDialog();
   };
+  const cascadeState = { warehouseGroup: null, warehouses: [], captureStarted: false };
+  const filterGroup = labelText => Array.from(document.querySelectorAll('main *')).find(element => {
+    if (element.children.length !== 3) return false;
+    const [label, mode, selector] = Array.from(element.children);
+    return label.textContent.trim() === labelText && mode.querySelectorAll('button').length === 3 && selector.querySelector('button');
+  });
+  const captureWarehouses = warehouseGroup => {
+    if (cascadeState.captureStarted) return;
+    cascadeState.captureStarted = true;
+    const button = warehouseGroup.querySelector('button');
+    button?.click();
+    setTimeout(() => {
+      const menu = warehouseGroup.querySelector('.absolute');
+      cascadeState.warehouses = Array.from(menu?.querySelectorAll('label') || []).map(label => ({
+        name: label.textContent.trim(),
+        input: label.querySelector('input'),
+        ids: Array.from(label.textContent.matchAll(/\[(\d{4,})\]/g), match => match[1])
+      })).filter(item => item.name !== '全选' && item.input);
+      button?.click();
+    }, 80);
+  };
+  const selectedStoreIds = menu => Array.from(menu.querySelectorAll('label')).filter(label => label.querySelector('input:checked') && label.textContent.trim() !== '全选').flatMap(label => Array.from(label.textContent.matchAll(/\[(\d{4,})\]/g), match => match[1]));
+  const syncWarehouseSelection = (warehouse, checked) => {
+    const button = cascadeState.warehouseGroup?.querySelector('button');
+    if (!button) return;
+    button.click();
+    setTimeout(() => {
+      const option = Array.from(cascadeState.warehouseGroup.querySelectorAll('label')).find(label => label.textContent.trim() === warehouse.name);
+      const input = option?.querySelector('input');
+      if (input && input.checked !== checked) input.click();
+      button.click();
+    }, 30);
+  };
+  const enhanceStoreCascadeMenu = storeGroup => {
+    const selector = storeGroup.lastElementChild;
+    const menu = selector?.querySelector('.absolute');
+    if (!menu || menu.dataset.storeWarehouseCascade === 'true') return;
+    menu.dataset.storeWarehouseCascade = 'true';
+    menu.style.width = '520px';
+    menu.style.display = 'grid';
+    menu.style.gridTemplateColumns = '240px 1fr';
+    const warehousePanel = document.createElement('div');
+    warehousePanel.dataset.storeWarehousePanel = 'true';
+    warehousePanel.style.cssText = 'border-left:1px solid #e5e7eb;max-height:320px;overflow-y:auto;padding:8px;';
+    menu.appendChild(warehousePanel);
+    const renderWarehouses = () => {
+      const ids = selectedStoreIds(menu);
+      const options = ids.length ? cascadeState.warehouses.filter(item => item.ids.some(id => ids.includes(id.slice(0, 4)))) : cascadeState.warehouses;
+      warehousePanel.innerHTML = `<div style="padding:4px 8px 8px;color:#6b7280;font-size:12px;">${ids.length ? '对应仓库（可多选）' : '请选择门店查看仓库'}</div>`;
+      options.forEach(warehouse => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px;cursor:pointer;font-size:14px;color:#374151;';
+        const input = document.createElement('input'); input.type = 'checkbox'; input.checked = Boolean(warehouse.input?.checked); input.className = 'w-4 h-4 accent-blue-600';
+        input.onchange = () => syncWarehouseSelection(warehouse, input.checked);
+        label.append(input, document.createTextNode(warehouse.name)); warehousePanel.appendChild(label);
+      });
+    };
+    renderWarehouses();
+    menu.addEventListener('change', event => { if (event.target.matches('input[type="checkbox"]')) setTimeout(renderWarehouses, 0); });
+  };
   const mergeStoreWarehouseFilter = () => {
-    const filterGroups = Array.from(document.querySelectorAll('main *')).filter(element => {
-      if (element.children.length !== 3) return false;
-      const [label, mode, selector] = Array.from(element.children);
-      return label.textContent.trim() === '门店' && mode.querySelectorAll('button').length === 3 && selector.querySelector('button');
-    });
-    const storeGroup = filterGroups[0];
-    const warehouseGroup = Array.from(document.querySelectorAll('main *')).find(element => {
-      if (element.children.length !== 3) return false;
-      const [label, mode, selector] = Array.from(element.children);
-      return label.textContent.trim() === '仓库' && mode.querySelectorAll('button').length === 3 && selector.querySelector('button');
-    });
-    if (!storeGroup || !warehouseGroup || storeGroup.dataset.storeWarehouseMerged === 'true') return;
-    storeGroup.dataset.storeWarehouseMerged = 'true';
-    warehouseGroup.remove();
+    const storeGroup = filterGroup('门店');
+    const warehouseGroup = filterGroup('仓库');
+    if (!storeGroup || !warehouseGroup) return;
+    cascadeState.warehouseGroup = warehouseGroup;
+    captureWarehouses(warehouseGroup);
+    if (storeGroup.dataset.storeWarehouseMerged !== 'true') {
+      storeGroup.dataset.storeWarehouseMerged = 'true';
+      warehouseGroup.style.cssText = 'position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;';
+    }
+    enhanceStoreCascadeMenu(storeGroup);
   };
   const hideRequestedMetrics = () => {
     const hidden = ['直入直出全链路平均时效（监管仓-卖场）', '监管仓/周转仓-预定仓全链路平均时效'];
