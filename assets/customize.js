@@ -1264,6 +1264,44 @@
       table.dataset.storeStageReady = 'true';
     });
   };
+  const normalizeStoreStageMonthlyTables = () => {
+    const headings = ['监管仓-周转仓调拨平均时效', '周转仓-卖场调拨平均时效'];
+    document.querySelectorAll('table').forEach(table => {
+      const header = table.tHead?.rows?.[0];
+      const labels = Array.from(header?.cells || []).map(cell => cell.textContent.trim());
+      if (!header || labels[0] !== '门店' || !labels.includes('月度均值') || !labels.includes('1月')) return;
+      const section = table.closest('.mb-6') || table.parentElement;
+      const heading = Array.from(section?.querySelectorAll('h3,h4') || []).find(element => headings.some(name => element.textContent.includes(name)));
+      if (!heading || table.dataset.storeStageMonthlyReady === 'true') return;
+      heading.textContent = heading.textContent.replace(/（天）|\(天\)/g, '（D）');
+      const format = cell => {
+        const match = cell.textContent.trim().match(/^(-?\d+(?:\.\d+)?)(天|小时|D|H)$/i);
+        if (!match) return;
+        let value = Number(match[1]);
+        const unit = /天|D/i.test(match[2]) ? 'D' : 'H';
+        cell.textContent = `${Number(value.toFixed(2))}${unit}`;
+      };
+      const rows = Array.from(table.tBodies || []).flatMap(body => Array.from(body.rows));
+      rows.forEach(row => {
+        if (row.cells[0]?.textContent.includes('一盘货')) { row.remove(); return; }
+        Array.from(row.cells).forEach(format);
+        if (row.dataset.storeStageDrilldown === 'true') return;
+        const store = row.cells[0]?.textContent.trim();
+        if (!store) return;
+        row.dataset.storeStageDrilldown = 'true';
+        row.classList.add('cursor-pointer');
+        const detail = row.parentElement.insertRow(row.sectionRowIndex + 1);
+        detail.hidden = true;
+        detail.dataset.storeStageDetail = 'true';
+        const detailCell = detail.insertCell();
+        detailCell.colSpan = labels.length;
+        detailCell.className = 'px-4 py-2 text-sm text-blue-700 bg-blue-50';
+        detailCell.textContent = `指标明细：${headings.find(name => heading.textContent.includes(name)) || heading.textContent.replace(/（D）|\(D\)/g, '')} · ${store}`;
+        row.addEventListener('click', () => { detail.hidden = !detail.hidden; row.classList.toggle('bg-blue-50', !detail.hidden); });
+      });
+      table.dataset.storeStageMonthlyReady = 'true';
+    });
+  };
   const rebuildStoreStageTables = () => {
     // Keep the original 门店段 detail table and do not rewrite its layout here.
     // This preserves the reference style used in the design mockup.
@@ -1324,7 +1362,7 @@
     });
   };
   const run = () => {
-    [enhanceTrend, addControls, mergeStoreWarehouseFilter, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeExclusionPanels, floatExclusionComparison, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, normalizeStoreStageNode, normalizeStoreStageMetrics, enhanceStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope, remove7063Notice, formatRequestedTimingTables, fixOverviewDecimals, forceTimingUnits, applyDetailTargets].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
+    [enhanceTrend, addControls, mergeStoreWarehouseFilter, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeExclusionPanels, floatExclusionComparison, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, normalizeStoreStageNode, normalizeStoreStageMetrics, enhanceStoreStageMetrics, normalizeStoreStageMonthlyTables, fixStoreStageRowSpan, normalizeExceptionMetricScope, remove7063Notice, formatRequestedTimingTables, fixOverviewDecimals, forceTimingUnits, applyDetailTargets].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
   };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
