@@ -387,16 +387,16 @@
   const captureWarehouses = warehouseGroup => {
     if (cascadeState.captureStarted) return;
     cascadeState.captureStarted = true;
-    const button = warehouseGroup.querySelector('button');
-    button?.click();
+    warehouseGroup.querySelector('button')?.click();
     setTimeout(() => {
-      const menu = warehouseGroup.querySelector('.absolute');
+      const currentGroup = filterGroup('仓库') || warehouseGroup;
+      const menu = currentGroup.querySelector('.absolute');
       cascadeState.warehouses = Array.from(menu?.querySelectorAll('label') || []).map(label => ({
         name: label.textContent.trim(),
         input: label.querySelector('input'),
         ids: Array.from(label.textContent.matchAll(/\[(\d{4,})\]/g), match => match[1])
       })).filter(item => item.name !== '全选' && item.input);
-      button?.click();
+      currentGroup.querySelector('button')?.click();
       document.querySelectorAll('[data-store-warehouse-cascade]').forEach(storeMenu => storeMenu._renderWarehouses?.());
     }, 80);
   };
