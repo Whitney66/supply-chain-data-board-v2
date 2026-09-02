@@ -387,7 +387,7 @@
   const captureWarehouses = warehouseGroup => {
     if (cascadeState.captureStarted) return;
     cascadeState.captureStarted = true;
-    warehouseGroup.querySelector('button')?.click();
+    warehouseGroup.lastElementChild?.querySelector('button')?.click();
     setTimeout(() => {
       const currentGroup = filterGroup('仓库') || warehouseGroup;
       const menu = currentGroup.querySelector('.absolute');
@@ -396,13 +396,13 @@
         input: label.querySelector('input'),
         ids: Array.from(label.textContent.matchAll(/\[(\d{4,})\]/g), match => match[1])
       })).filter(item => item.name !== '全选' && item.input);
-      currentGroup.querySelector('button')?.click();
+      currentGroup.lastElementChild?.querySelector('button')?.click();
       document.querySelectorAll('[data-store-warehouse-cascade]').forEach(storeMenu => storeMenu._renderWarehouses?.());
     }, 80);
   };
   const selectedStoreIds = menu => Array.from(menu.querySelectorAll('label')).filter(label => label.querySelector('input:checked') && label.textContent.trim() !== '全选').flatMap(label => Array.from(label.textContent.matchAll(/\[(\d{4,})\]/g), match => match[1]));
   const syncWarehouseSelection = (warehouse, checked) => {
-    const button = cascadeState.warehouseGroup?.querySelector('button');
+    const button = cascadeState.warehouseGroup?.lastElementChild?.querySelector('button');
     if (!button) return;
     button.click();
     setTimeout(() => {
