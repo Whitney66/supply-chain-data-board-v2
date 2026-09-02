@@ -1241,6 +1241,9 @@
         else if (label === '业务环节') cell.textContent = '品类';
       });
       const storeIndex = headers.indexOf('门店');
+      Array.from(table.tBodies || []).forEach(body => Array.from(body.rows).forEach(row => {
+        if (row.textContent.includes('一盘货')) row.remove();
+      }));
       rows.forEach((row, index) => {
         const storeCell = row.cells[storeIndex >= 0 ? storeIndex : 0];
         if (!storeCell || !storeCell.textContent.trim() || storeCell.textContent.trim() === '整体') return;
@@ -1321,7 +1324,7 @@
     });
   };
   const run = () => {
-    [enhanceTrend, addControls, mergeStoreWarehouseFilter, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeExclusionPanels, floatExclusionComparison, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, normalizeStoreStageNode, normalizeStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope, remove7063Notice, formatRequestedTimingTables, fixOverviewDecimals, forceTimingUnits, applyDetailTargets].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
+    [enhanceTrend, addControls, mergeStoreWarehouseFilter, mergeOverview, hideRequestedMetrics, limitExclusionControls, normalizeExclusionPanels, floatExclusionComparison, normalizeTimingTargetUnits, flattenWarehouseOutboundDetail, normalizeStorePickupTables, normalizeTrendAxes, normalizeStoreStageNode, normalizeStoreStageMetrics, enhanceStoreStageMetrics, fixStoreStageRowSpan, normalizeExceptionMetricScope, remove7063Notice, formatRequestedTimingTables, fixOverviewDecimals, forceTimingUnits, applyDetailTargets].forEach(task => { try { task(); } catch (error) { console.warn('[customize]', error); } });
   };
   const start = () => { run(); setInterval(run, 300); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
