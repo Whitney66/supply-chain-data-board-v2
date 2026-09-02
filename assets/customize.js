@@ -412,7 +412,7 @@
         ids: Array.from(label.textContent.matchAll(/(?:\[|【)(\d{4,})(?:\]|】)/g), match => match[1])
       })).filter(item => item.name !== '全选' && item.input);
       currentGroup.lastElementChild?.querySelector('button')?.click();
-      document.querySelectorAll('[data-store-warehouse-cascade]').forEach(storeMenu => storeMenu._renderWarehouses?.());
+      setTimeout(() => document.querySelectorAll('[data-store-warehouse-cascade]').forEach(storeMenu => storeMenu._renderWarehouses?.()), 120);
     }, 80);
   };
   const selectedStoreIds = menu => Array.from(menu.querySelectorAll('label')).filter(label => label.querySelector('input:checked') && label.textContent.trim() !== '全选').flatMap(label => Array.from(label.textContent.matchAll(/(?:\[|【)(\d{4,})(?:\]|】)/g), match => match[1]));
