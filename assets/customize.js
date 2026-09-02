@@ -475,7 +475,7 @@
     enhanceStoreCascadeMenu(storeGroup);
   };
   const hideRequestedMetrics = () => {
-    const hidden = ['直入直出全链路平均时效（监管仓-卖场）', '监管仓/周转仓-预定仓全链路平均时效'];
+    const hidden = ['3.2.3直入直出全链路平均时长（监管仓-卖场）', '3.2.3直入直出全链路平均时效（监管仓-卖场）', '直入直出全链路平均时长（监管仓-卖场）', '直入直出全链路平均时效（监管仓-卖场）', '3.6.1监管仓/周转仓-预定仓全链路平均时效', '3.6.1监管仓/周转仓-预定仓全链路平均时长', '监管仓/周转仓-预定仓全链路平均时长', '监管仓/周转仓-预定仓全链路平均时效'];
     getTables().forEach(table => {
       Array.from(table.tBodies || []).forEach(body => Array.from(body.rows).forEach(row => {
         if (hidden.some(name => (row.textContent || '').includes(name))) row.remove();
@@ -487,7 +487,7 @@
     document.querySelectorAll('button, label, span, div').forEach(element => {
       if (element.children.length) return;
       const text = element.textContent.trim();
-      if (hidden.some(name => text.includes(name))) element.closest('button, label')?.remove();
+      if (hidden.some(name => text.includes(name))) element.closest('tr, button, label, section, .mb-4')?.remove();
     });
   };
   const normalizeMetricLabels = () => {
@@ -1319,7 +1319,7 @@
         const metricName = heading.textContent.replace(/（天）|\(天\)|（D）|\(D\)/g, '').trim();
         detailCell.innerHTML = `<div style="font-size:14px;font-weight:600;color:#1d4ed8;margin-bottom:8px;">${store} - 指标明细</div><table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff;"><thead><tr>${['门店', '品类', '指标', '目标值', '日度均值', '月度均值', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月'].map(label => `<th style="padding:6px;border:1px solid #e5e7eb;background:#fff4f4;">${label}</th>`).join('')}</tr></thead><tbody>${[['平均时效', row.cells[1]?.textContent || '-', ...Array.from(row.cells).slice(1).map(cell => cell.textContent.trim())], ['大于目标值的票数', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'], ['总票数', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'], ['达标率', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-']].map((values, rowIndex) => `<tr>${values.map((value, cellIndex) => `<td style="padding:6px;border:1px solid #e5e7eb;text-align:${cellIndex === 0 ? 'left' : 'center'};">${cellIndex === 0 ? store : cellIndex === 1 ? '-' : cellIndex === 2 ? values[0] : value}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
         const monthValues = Array.from(row.cells).slice(1).map(cell => cell.textContent.trim());
-        const detailRows = [['平均时效', '24' + unit, '-', ...monthValues], ['大于目标值的票数', '-', '-', '-', '152', '152', '144', '150', '156', '162', '144', '150', '156'], ['总票数', '-', '-', '-', '1168', '1168', '1104', '1152', '1200', '1248', '1104', '1152', '1200'], ['达标率', '65.00%', '-', '-', '86.99%', '86.99%', '86.96%', '86.98%', '87.00%', '87.02%', '86.96%', '86.98%', '87.00%']];
+        const detailRows = [['平均时效', unit === 'D' ? '1D' : '24H', '-', ...monthValues], ['大于目标值的票数', '-', '-', '-', '152', '152', '144', '150', '156', '162', '144', '150', '156'], ['总票数', '-', '-', '-', '1168', '1168', '1104', '1152', '1200', '1248', '1104', '1152', '1200'], ['达标率', '65.00%', '-', '-', '86.99%', '86.99%', '86.96%', '86.98%', '87.00%', '87.02%', '86.96%', '86.98%', '87.00%']];
         detailCell.innerHTML = `<div style="font-size:14px;font-weight:600;color:#1d4ed8;margin-bottom:8px;">${store} - 指标明细</div><table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff;"><thead><tr>${['门店', '品类', '指标', '目标值', '日度均值', '月度均值', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月'].map(label => `<th style="padding:6px;border:1px solid #e5e7eb;background:#fff4f4;">${label}</th>`).join('')}</tr></thead><tbody>${detailRows.map((values, rowIndex) => `<tr>${rowIndex === 0 ? `<td rowspan="4" style="padding:6px;border:1px solid #e5e7eb;vertical-align:middle;">${store}</td><td rowspan="4" style="padding:6px;border:1px solid #e5e7eb;text-align:center;vertical-align:middle;">-</td>` : ''}<td style="padding:6px;border:1px solid #e5e7eb;">${values[0]}</td>${values.slice(1).map(value => `<td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${value}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
         row.addEventListener('click', () => { detail.hidden = !detail.hidden; row.classList.toggle('bg-blue-50', !detail.hidden); });
       });
